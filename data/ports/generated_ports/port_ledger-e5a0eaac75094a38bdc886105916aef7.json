@@ -1,0 +1,13 @@
+{
+  "id": "ledger-e5a0eaac75094a38bdc886105916aef7",
+  "owner": "rayan",
+  "port_number": 65000,
+  "reward": 0.0,
+  "status": "resolved",
+  "resolve_delay_sec": 0,
+  "created_at": "2025-10-08T18:13:06.952684+00:00",
+  "discovered_at": "2025-10-08T18:13:06.952684+00:00",
+  "resolved_at": "2025-10-08T18:13:06.952684+00:00",
+  "resolve_started_at": null,
+  "version": 1
+}
