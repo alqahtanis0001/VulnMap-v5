@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Login — VulnMap{% endblock %}
+{% block content %}
+
+<!-- Auth card -->
+<div class="card rtl" style="max-width:560px;margin-inline:auto;overflow:hidden;">
+  <!-- Decorative bar -->
+  <div aria-hidden="true" style="height:6px;border-radius:8px;background:linear-gradient(90deg,#4e7cff,#59d7ff,#6fffc3);opacity:.4;margin:-4px 0 8px;"></div>
+
+  <h2 style="margin-bottom:6px;">تسجيل الدخول</h2>
+  <p class="small muted" style="margin-top:0;">
+    أدخل اسم المستخدم وكلمة المرور للوصول إلى لوحة التحكم.
+  </p>
+
+  <!-- Subtle tips -->
+  <div class="card elev" style="margin-top:10px;">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <span class="chip">🔒 جلسة آمنة</span>
+      <span class="chip" style="background:#2a2320;color:#f4d6c5;border-color:#5b3e33;">⚠️ الرجاء عدم مشاركة بيانات الدخول</span>
+    </div>
+  </div>
+
+  <form id="login-form" method="post" action="{{ url_for('login') }}" style="display:grid;gap:12px;margin-top:14px;">
+    <!-- Username -->
+    <div>
+      <label>اسم المستخدم</label>
+      <div style="position:relative;">
+        <input class="input" id="username" type="text" name="username" required autocomplete="username" placeholder="اسم المستخدم" autofocus>
+        <div aria-hidden="true" style="position:absolute;inset-inline-start:10px;top:50%;transform:translateY(-50%);opacity:.65;">👤</div>
+      </div>
+    </div>
+
+    <!-- Password with toggle + caps-lock hint -->
+    <div>
+      <label>كلمة المرور</label>
+      <div style="position:relative;display:flex;align-items:center;">
+        <input class="input" id="password" type="password" name="password" required autocomplete="current-password" placeholder="••••••••" style="padding-inline-end:44px;">
+        <button type="button" id="togglePw" class="btn tertiary small" style="position:absolute;inset-inline-end:6px;top:50%;transform:translateY(-50%);padding:4px 10px;">
+          إظهار
+        </button>
+      </div>
+      <div id="caps-hint" class="small muted" style="margin-top:6px;display:none;color:#ffd2d6;">
+        تحذير: مفتاح <strong>Caps Lock</strong> مُفعل.
+      </div>
+    </div>
+
+    <!-- Remember me (client-only) -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <label class="small muted" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input id="remember" type="checkbox" style="accent-color:#2a6fff;">
+        تذكرني على هذا الجهاز
+      </label>
+      <a class="btn secondary small" href="{{ url_for('signup') }}">إنشاء حساب</a>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button class="btn" type="submit" id="submitBtn">دخول</button>
+      <span class="small muted">هل نسيت كلمة المرور؟ تواصل مع الإدارة.</span>
+    </div>
+  </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var form = document.getElementById('login-form');
+    var user = document.getElementById('username');
+    var pw = document.getElementById('password');
+    var toggle = document.getElementById('togglePw');
+    var capsHint = document.getElementById('caps-hint');
+    var remember = document.getElementById('remember');
+    var submitBtn = document.getElementById('submitBtn');
+
+    // Restore remembered username (client-only)
+    try {
+      var saved = localStorage.getItem('vm_login_username');
+      if (saved && !user.value) user.value = saved;
+      remember.checked = !!saved;
+    } catch(e) {}
+
+    // Show/Hide password
+    if (toggle && pw) {
+      toggle.addEventListener('click', function(){
+        var show = pw.type === 'password';
+        pw.type = show ? 'text' : 'password';
+        toggle.textContent = show ? 'إخفاء' : 'إظهار';
+        pw.focus();
+      });
+    }
+
+    // Caps Lock indicator
+    function onKey(e){
+      try {
+        var hasCaps = e.getModifierState && e.getModifierState('CapsLock');
+        capsHint.style.display = hasCaps ? '' : 'none';
+      } catch(_) {}
+    }
+    pw && pw.addEventListener('keyup', onKey);
+    pw && pw.addEventListener('keydown', onKey);
+
+    // Remember me (stores username locally only)
+    form && form.addEventListener('submit', function(){
+      // Optional global progress overlay (from base.html helpers)
+      if (window.VM && VM.progress && submitBtn) {
+        VM.progress.show('جارٍ تسجيل الدخول…', 'يتم التحقق من بيانات الدخول.');
+      }
+      try {
+        if (remember && remember.checked) {
+          localStorage.setItem('vm_login_username', user.value.trim());
+        } else {
+          localStorage.removeItem('vm_login_username');
+        }
+      } catch(e) {}
+      // Let the form submit normally
+    });
+  })();
+
+</script>
+  <script defer src="{{ url_for('static', filename='js/index_login.js') }}"></script>
+  <script>
+    /* keep your current inline login helpers here (show/hide password, caps, remember me)… */
+  </script>
+{% endblock %}
+
+

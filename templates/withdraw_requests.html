@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card rtl">
+  <h2>طلبات السحب</h2>
+  <p class="small">
+    الإجمالي: {{ total }} — قيد الانتظار: {{ pending_count }}
+  </p>
+
+  <!-- Pending -->
+  <div class="card" style="margin-top:12px;">
+    <h3>قيد الانتظار</h3>
+    {% set rows = grouped.pending %}
+    {% if not rows or rows|length == 0 %}
+      <div class="small muted">لا يوجد طلبات قيد الانتظار.</div>
+    {% else %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>المستخدم</th>
+          <th>المبلغ (ر.س)</th>
+          <th>التاريخ</th>
+          <th>إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.username }}</td>
+          <td>{{ '%.2f'|format(r.amount_sar or 0) }}</td>
+          <td>{{ r.created_at }}</td>
+          <td style="display:flex;gap:8px;align-items:center;">
+            <form method="post" action="{{ url_for('withdraw_admin.set_status', req_id=r.id) }}">
+              <input type="hidden" name="status" value="approved">
+              <button class="btn" type="submit">قبول</button>
+            </form>
+            <form method="post" action="{{ url_for('withdraw_admin.set_status', req_id=r.id) }}">
+              <input type="hidden" name="status" value="rejected">
+              <button class="btn tertiary" type="submit">رفض</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+  <!-- Approved -->
+  <div class="card" style="margin-top:12px;">
+    <h3>المقبولة</h3>
+    {% set rows = grouped.approved %}
+    {% if not rows or rows|length == 0 %}
+      <div class="small muted">لا يوجد عناصر.</div>
+    {% else %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>المستخدم</th>
+          <th>المبلغ (ر.س)</th>
+          <th>أنجزت في</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.username }}</td>
+          <td>{{ '%.2f'|format(r.amount_sar or 0) }}</td>
+          <td>{{ r.processed_at or r.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+
+  <!-- Rejected -->
+  <div class="card" style="margin-top:12px;">
+    <h3>المرفوضة</h3>
+    {% set rows = grouped.rejected %}
+    {% if not rows or rows|length == 0 %}
+      <div class="small muted">لا يوجد عناصر.</div>
+    {% else %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>المستخدم</th>
+          <th>المبلغ (ر.س)</th>
+          <th>رُوجِعَت في</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.username }}</td>
+          <td>{{ '%.2f'|format(r.amount_sar or 0) }}</td>
+          <td>{{ r.processed_at or r.created_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

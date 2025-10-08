@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>💰 طلبات السحب</h2>
+  {% if items and items|length > 0 %}
+    <table class="table">
+      <thead>
+        <tr><th>#</th><th>المستخدم</th><th>المبلغ (SAR)</th><th>الحالة</th><th>التاريخ</th></tr>
+      </thead>
+      <tbody>
+        {% for w in items %}
+        <tr>
+          <td>{{ w.id }}</td>
+          <td>{{ w.username }}</td>
+          <td>{{ '%.2f'|format(w.amount_sar or 0) }}</td>
+          <td>{{ w.status or 'pending' }}</td>
+          <td>{{ w.created_at or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">لا توجد طلبات سحب حالياً.</p>
+  {% endif %}
+  <a class="btn secondary" href="{{ url_for('admin_dashboard') }}" style="margin-top:10px;">⬅ رجوع</a>
+</div>
+{% endblock %}

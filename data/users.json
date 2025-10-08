@@ -1,0 +1,10 @@
+[
+  {
+    "id": 1,
+    "username": "admin",
+    "password_hash": "scrypt:32768:8:1$qBn264SiW1J0qhW6$1e06a94b14519b4e70515ca4f300c6fd08ccddc6e37a30099103267c3d29096f874b8a174d0ac0abe193487357aa8c384cbd7f726a1f9f92cb2f02855d76df8b",
+    "is_admin": true,
+    "created_at": "2025-10-07T19:11:31.222493+00:00"
+  }
+
+]

@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card rtl" style="overflow:visible;">
+  <!-- Box 1: Main header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+    <div>
+      <h2 id="hdr-counts" style="margin-bottom:4px;">
+        لوحة التحكم — المنافذ المكتشفة: {{ discovered_count }} | المحلولة: {{ resolved_count }}
+      </h2>
+      <p class="small" style="margin-top:0;">قم بفحص المنافذ ثم حل المكتشف منها لتحصل على المكافآت.</p>
+    </div>
+
+    <!-- Mini stats chips -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <span class="chip" style="padding:.35rem .6rem;border-radius:999px;background:#172033;color:#b7cdfa;border:1px solid #233354;">
+        🟡 مكتشفة: <strong style="margin-inline-start:6px;">{{ discovered_count }}</strong>
+      </span>
+      <span class="chip" style="padding:.35rem .6rem;border-radius:999px;background:#1a2a20;color:#c9f2d4;border:1px solid #254a35;">
+        ✅ محلولة: <strong style="margin-inline-start:6px;">{{ resolved_count }}</strong>
+      </span>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-top:12px;">
+
+    <!-- Box 2: Ports (left, main) -->
+    <div class="card" style="flex:2; min-width:560px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+        <h3 style="margin:0;">المنافذ</h3>
+
+        <!-- Ports toolbar: filters + search -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div class="btn-group" style="display:flex;gap:6px;">
+            <button type="button" class="btn tertiary small port-filter is-active" data-filter="all">الكل</button>
+            <button type="button" class="btn tertiary small port-filter" data-filter="discovered">المكتشفة</button>
+            <button type="button" class="btn tertiary small port-filter" data-filter="resolved">المحلولة</button>
+            <button type="button" class="btn tertiary small port-filter" data-filter="archived">المؤرشفة</button>
+          </div>
+          <div class="search" style="display:flex;align-items:center;gap:6px;">
+            <input id="port-search" type="text" class="input" placeholder="ابحث برقم المنفذ…" style="width:180px;">
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:8px;">
+        <table class="table" id="ports-table" style="width:100%;border-collapse:separate;border-spacing:0 6px;">
+          <thead>
+            <tr>
+              <th>المنفذ</th>
+              <th>الوصف</th>
+              <th>المكافأة</th>
+              <th>الحالة</th>
+              <th style="min-width:260px;">الإجراء</th>
+            </tr>
+          </thead>
+          <tbody id="ports-body">
+            {% set any_rows = (discovered|length + resolved|length + archived|length) > 0 %}
+            {% if not any_rows %}
+              <tr><td colspan="5" style="text-align:center;color:#999;">لا توجد منافذ ظاهرة حالياً — اضغط "فحص المنافذ".</td></tr>
+            {% else %}
+              {# --- Discovered --- #}
+              {% for p in discovered %}
+                {% if p.id and p.id[:7] == 'ledger-' %}
+                  {# skip synthetic ledger entries #}
+                {% else %}
+                  <tr data-row-id="{{ p.id }}" data-status="discovered">
+                    <td class="td-port"><strong>{{ p.port_number }}</strong></td>
+                    <td>—</td>
+                    <td class="td-reward">{{ '%.2f'|format(p.reward or 0) }}</td>
+                    <td class="td-status">
+                      <span style="padding:.2rem .5rem;border-radius:999px;background:#172033;color:#b7cdfa;border:1px solid #233354;display:inline-flex;align-items:center;gap:6px;">
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f5c84c;"></span> مكتشف
+                      </span>
+                    </td>
+                    <td>
+                      <div class="row-actions" style="display:flex;gap:8px;align-items:center;">
+                        <form class="resolve-form">
+                          <input type="hidden" name="port_id" value="{{ p.id }}">
+                          <button class="btn resolve-btn" type="button"
+                                  data-port-id="{{ p.id }}"
+                                  data-ready-at="{{ p.ready_at or '' }}"
+                                  data-delay-sec="{{ p.resolve_delay_sec or 0 }}"
+                                  data-disc="{{ p.discovered_at or '' }}">
+                            حل
+                          </button>
+                        </form>
+                        <form class="archive-form">
+                          <input type="hidden" name="port_id" value="{{ p.id }}">
+                          <button class="btn tertiary" type="button">أرشفة</button>
+                        </form>
+                        <div class="mini-progress" hidden>
+                          <div class="mini-bar" style="width:120px;height:6px;background:#2a2a2a;border-radius:999px;overflow:hidden;">
+                            <div class="mini-fill" style="height:100%;width:0%"></div>
+                          </div>
+                          <span class="mini-txt small muted" style="margin-inline-start:6px;">⏳ …</span>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+
+              {# --- Resolved --- #}
+              {% for p in resolved %}
+                {% if p.id and p.id[:7] == 'ledger-' %}
+                  {# skip synthetic ledger entries #}
+                {% else %}
+                  <tr data-row-id="{{ p.id }}" data-status="resolved">
+                    <td class="td-port"><strong>{{ p.port_number }}</strong></td>
+                    <td>—</td>
+                    <td class="td-reward">{{ '%.2f'|format(p.reward or 0) }}</td>
+                    <td class="td-status">
+                      <span style="padding:.2rem .5rem;border-radius:999px;background:#1a2a20;color:#c9f2d4;border:1px solid #254a35;display:inline-flex;align-items:center;gap:6px;">
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#33d17a;"></span> تم الحل
+                      </span>
+                    </td>
+                    <td><span class="small muted">—</span></td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+
+              {# --- Archived --- #}
+              {% for p in archived %}
+                {% if p.id and p.id[:7] == 'ledger-' %}
+                  {# skip synthetic ledger entries #}
+                {% else %}
+                  <tr data-row-id="{{ p.id }}" data-status="archived">
+                    <td class="td-port"><strong>{{ p.port_number }}</strong></td>
+                    <td>—</td>
+                    <td class="td-reward">{{ '%.2f'|format(p.reward or 0) }}</td>
+                    <td class="td-status">
+                      <span style="padding:.2rem .5rem;border-radius:999px;background:#2a2320;color:#f4d6c5;border:1px solid #5b3e33;display:inline-flex;align-items:center;gap:6px;">
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f7a77a;"></span> مؤرشف
+                      </span>
+                    </td>
+                    <td><span class="small muted">—</span></td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Sidebar (right) : Box 4 (Actions) above Box 3 (Wallet) -->
+    <div style="flex:1; min-width:300px; display:flex; flex-direction:column; gap:12px; position:sticky; top:10px;">
+
+      <!-- Box 4: Actions -->
+      <div class="card">
+        <h3 style="margin-top:0;">الإجراءات</h3>
+
+        <!-- Scan (handled by scan_animation.js) -->
+        <form id="scan-form" style="margin-top:6px;">
+          <button id="scan-btn" class="btn" type="button" style="width:100%;font-size:1.05em;padding:.8rem 1rem;">
+            🔍 فحص المنافذ
+          </button>
+        </form>
+
+        <!-- Withdraw (real HTML POST) -->
+        <form method="post" action="{{ url_for('user_withdraw_request') }}" style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <input type="number" name="amount_sar" step="0.01" min="0" placeholder="المبلغ (ر.س)" class="input" style="flex:1;min-width:120px;" required>
+          <button class="btn secondary" type="submit">طلب سحب</button>
+        </form>
+
+        <p class="small muted" style="margin-top:8px;">
+          تلميح: يمكنك السحب فور وصول الرصيد.
+        </p>
+      </div>
+
+      <!-- Box 3: Wallet (only الرصيد الحالي) -->
+      <div class="card" style="overflow:hidden;">
+        <h3 style="margin-top:0;">المحفظة</h3>
+
+        <!-- Decorative gradient band -->
+        <div aria-hidden="true" style="height:6px;border-radius:8px;background:linear-gradient(90deg,#4e7cff,#59d7ff,#6fffc3);opacity:.4;margin:-4px 0 8px;"></div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div>
+            <div class="small muted" style="margin-bottom:2px;">الرصيد الحالي</div>
+            <div style="font-size:1.6em;font-weight:800;letter-spacing:.3px;">
+              <span id="available-balance"
+                    data-balance="{{ '%.2f'|format(available_balance or 0) }}">
+                {{ '%.2f'|format(available_balance or 0) }}
+              </span>
+              <span class="small" style="opacity:.85;margin-inline-start:6px;">ر.س</span>
+            </div>
+          </div>
+          <!-- Lock icon hinting persistence across cleanup -->
+          <div title="يستمر الرصيد بعد التنظيف الأسبوعي" style="opacity:.75;font-size:1.3em;">🔒</div>
+        </div>
+
+        <p class="small muted" style="margin-top:8px;">
+          أموالك محفوظة بأمان في مكان خاص و آمن داخل الموقع.
+        </p>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- Scan overlay (consumed by scan_animation.js) -->
+<div id="scan-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:9999; align-items:center; justify-content:center;">
+  <div style="background:#111; color:#eee; padding:22px 26px; border-radius:14px; min-width:320px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.45);">
+    <div style="font-weight:600; margin-bottom:10px;">جارٍ الفحص...</div>
+    <div id="scan-gauge" style="height:6px; background:#2a2a2a; border-radius:999px; overflow:hidden;">
+      <div id="scan-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#35c,#7ad); transition:width .15s linear;"></div>
+    </div>
+    <div id="scan-status" style="margin-top:10px; font-size:0.95em; color:#ccc;">تهيئة محرك الاكتشاف...</div>
+  </div>
+</div>
+
+<!-- Endpoint wiring for static JS files -->
+<div id="app-endpoints"
+     data-scan-json="{{ url_for('user_scan_json') }}"
+     data-resolve-json="{{ url_for('user_resolve_json') }}"
+     data-withdraw-json="{{ url_for('user_withdraw_json') }}"
+     data-archive-json="{{ url_for('user_archive_json') }}"></div>
+{% endblock %}
+
+{% block scripts %}
+  <!-- Load base first (defines window.VM helpers/state), then features that attach onto VM -->
+  <script src="{{ url_for('static', filename='js/user_dashboard.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/resolve_ports.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/scan_animation.js') }}"></script>
+
+  <!-- Inline micro-interactions (front-end only; no backend changes) -->
+  <script>
+    (function () {
+      // Helper: identify/hide synthetic ledger rows
+      function isLedgerRow(tr) {
+        if (!tr) return false;
+        const id = (tr.getAttribute('data-row-id') || '').trim();
+        return id.startsWith('ledger-');
+      }
+      function hideLedgerRows(scope) {
+        const root = scope || document;
+        const rows = root.querySelectorAll('tbody#ports-body tr[data-row-id]');
+        rows.forEach(tr => {
+          if (isLedgerRow(tr)) {
+            tr.style.display = 'none';
+            tr.dataset.ledgerHidden = '1';
+            tr.classList.add('is-ledger-row');
+          }
+        });
+      }
+
+      // 1) Animate wallet balance count-up on load (non-intrusive)
+      const balEl = document.getElementById('available-balance');
+      if (balEl && !balEl.dataset.animated) {
+        const finalVal = parseFloat(balEl.dataset.balance || balEl.textContent || '0') || 0;
+        const duration = 800; // ms
+        const start = performance.now();
+        const startVal = 0;
+        const fmt = (n) => n.toFixed(2);
+        function step(t) {
+          const p = Math.min(1, (t - start) / duration);
+          const eased = (p < 0.5) ? (2*p*p) : (1 - Math.pow(-2*p + 2, 2)/2); // easeInOutQuad
+          const val = startVal + (finalVal - startVal) * eased;
+          balEl.textContent = fmt(val);
+          if (p < 1) requestAnimationFrame(step);
+          else { balEl.textContent = fmt(finalVal); balEl.dataset.animated = "1"; }
+        }
+        requestAnimationFrame(step);
+      }
+
+      // 2) Ports quick filters (never show ledger rows)
+      const filters = document.querySelectorAll('.port-filter');
+      const tbody = document.getElementById('ports-body');
+      function applyFilter(mode) {
+        if (!tbody) return;
+        Array.from(tbody.querySelectorAll('tr[data-row-id]')).forEach(tr => {
+          // Always hide ledger rows regardless of filter
+          if (isLedgerRow(tr)) { tr.style.display = 'none'; return; }
+          const st = tr.getAttribute('data-status') || 'other';
+          tr.style.display = (mode === 'all' || st === mode) ? '' : 'none';
+        });
+      }
+      filters.forEach(btn => {
+        btn.addEventListener('click', () => {
+          filters.forEach(b => b.classList.remove('is-active'));
+          btn.classList.add('is-active');
+          applyFilter(btn.dataset.filter);
+        });
+      });
+
+      // 3) Port search by number (client-side filter)
+      const searchInput = document.getElementById('port-search');
+      if (searchInput && tbody) {
+        searchInput.addEventListener('input', () => {
+          const q = searchInput.value.trim();
+          const rows = Array.from(tbody.querySelectorAll('tr[data-row-id]'));
+          if (!q) { rows.forEach(r => r.style.opacity = ''); return; }
+          rows.forEach(r => {
+            const cell = r.querySelector('.td-port');
+            const txt = (cell && cell.textContent || '').trim();
+            r.style.opacity = txt.includes(q) ? '' : '0.35';
+          });
+        });
+      }
+
+      // 4) Initial hide + observe future changes from AJAX re-renders
+      hideLedgerRows(document);
+      if (tbody && 'MutationObserver' in window) {
+        const obs = new MutationObserver((muts) => {
+          // After any row additions/updates, hide ledger rows again
+          hideLedgerRows(tbody);
+          // Re-apply current filter state (so new rows respect it)
+          const active = document.querySelector('.port-filter.is-active');
+          const mode = active ? active.dataset.filter : 'all';
+          applyFilter(mode);
+        });
+        obs.observe(tbody, { childList: true, subtree: true });
+      }
+    })();
+  </script>
+{% endblock %}

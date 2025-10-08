@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{% block title %}VulnMap{% endblock %}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    /* =========================
+       THEME & BASELINE
+       ========================= */
+    :root{
+      --bg:#0b0d12;
+      --panel:#0f1219;
+      --card:#11141c;
+      --elev:#151a24;
+      --text:#e8ecf3;
+      --muted:#9aa3ad;
+      --border:#1e2636;
+      --accent:#2a6fff;
+      --accent-2:#66d9a8;
+      --warn:#ffb86b;
+      --ok:#33d17a;
+      --err:#ff6b6b;
+      --info:#6ca0ff;
+
+      --radius:14px;
+      --ring: 0 0 0 2px rgba(42,111,255,.25);
+      --shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:radial-gradient(1200px 600px at 80% -10%, rgba(42,111,255,.085), transparent 55%),
+                           radial-gradient(1000px 500px at -10% 10%, rgba(102,217,168,.06), transparent 50%),
+                           var(--bg);
+      color:var(--text);
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      line-height:1.5;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+    a{color:#c9d7ff;text-decoration:none}
+    a:hover{text-decoration:underline}
+    img{max-width:100%;display:block}
+
+    /* =========================
+       HEADER / NAV
+       ========================= */
+    header{
+      position:sticky; top:0; z-index:1000;
+      display:flex; justify-content:space-between; align-items:center;
+      padding:14px 18px;
+      border-bottom:1px solid var(--border);
+      background:linear-gradient(0deg, rgba(10,12,17,.75), rgba(10,12,17,.75));
+      backdrop-filter:saturate(120%) blur(6px);
+    }
+    .brand{
+      display:flex; align-items:center; gap:8px;
+      font-weight:800; letter-spacing:.4px;
+      color:#eaf0ff;
+    }
+    .brand .logo{
+      width:28px; height:28px; display:grid; place-items:center;
+      background:linear-gradient(135deg, var(--accent), var(--accent-2));
+      color:#001; border-radius:8px; font-size:15px; font-weight:900;
+      box-shadow:0 6px 16px rgba(42,111,255,.35);
+    }
+    .nav{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .nav a.active{box-shadow:var(--ring)}
+
+    /* =========================
+       BUTTONS
+       ========================= */
+    .btn{
+      background:var(--accent);
+      border:1px solid var(--accent);
+      color:white;
+      padding:9px 14px;
+      border-radius:12px;
+      cursor:pointer; font-weight:700;
+      transition:transform .06s ease, background .15s ease, border-color .15s ease, color .15s ease;
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    }
+    .btn:hover{transform:translateY(-1px)}
+    .btn:active{transform:translateY(0)}
+    .btn:disabled{opacity:.6; cursor:not-allowed}
+
+    .btn.secondary{
+      background:transparent; color:#c9d7ff; border-color:#3a4560;
+    }
+    .btn.tertiary{
+      background:transparent; color:#9aa3ad; border-color:#343a4a;
+    }
+    .btn.danger{
+      background:#a83241; border-color:#a83241;
+    }
+    .btn.small{padding:6px 10px; font-size:.9em; border-radius:10px}
+    .btn-group{display:inline-flex; gap:6px; flex-wrap:wrap}
+
+    /* =========================
+       FORMS
+       ========================= */
+    .input, input, select, textarea{
+      width:100%; padding:10px 12px; border-radius:12px;
+      border:1px solid #2a2f44; background:#0f121a; color:var(--text);
+      outline:none; transition:border-color .12s ease, box-shadow .12s ease;
+    }
+    .input:focus, input:focus, select:focus, textarea:focus{
+      border-color:#39548b; box-shadow:var(--ring);
+    }
+    ::placeholder{color:#7d8799}
+
+    /* =========================
+       LAYOUT
+       ========================= */
+    main{max-width:1180px; margin:24px auto; padding:0 16px}
+    .card{
+      background:linear-gradient(180deg, rgba(255,255,255,.012), transparent 18%),
+                 var(--card);
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      padding:14px 16px;
+      box-shadow:0 1px 0 rgba(255,255,255,.02) inset, 0 12px 30px rgba(0,0,0,.22);
+    }
+    .elev{background:var(--elev)}
+    .small{font-size:.92em}
+    .muted{color:var(--muted)}
+    .rtl{text-align:right}
+
+    /* =========================
+       TABLES
+       ========================= */
+    .table{width:100%; border-collapse:separate; border-spacing:0}
+    .table thead th{
+      color:#b8c0cc; font-weight:800; background:#0f1218;
+      position:sticky; top:0; z-index:1;
+    }
+    .table th, .table td{padding:10px 8px; text-align:right; border-top:1px solid var(--border)}
+    .table tbody tr{transition:background .12s ease, transform .06s ease}
+    .table tbody tr:hover{background:#121722}
+
+    /* =========================
+       CHIPS / BADGES
+       ========================= */
+    .chip{
+      padding:.35rem .6rem; border-radius:999px; border:1px solid #233354;
+      background:#172033; color:#b7cdfa; display:inline-flex; align-items:center; gap:6px;
+    }
+
+    /* =========================
+       FLASH MESSAGES
+       ========================= */
+    .flash{
+      margin:12px 0; padding:12px 14px; border-radius:12px; border:1px solid;
+      background:linear-gradient(180deg, rgba(255,255,255,.02), transparent);
+    }
+    .flash.ok{border-color:#175c42; background:#0b1d17; color:#b7f5d9}
+    .flash.err{border-color:#8a2730; background:#1b0e12; color:#ffd2d6}
+    .flash.info{border-color:#294b93; background:#0b1424; color:#cfe0ff}
+
+    /* =========================
+       FOOTER
+       ========================= */
+    footer{margin:40px 0 20px; text-align:center; color:#6d7583}
+    footer small{opacity:.85}
+
+    /* =========================
+       PROGRESS OVERLAY (GLOBAL)
+       ========================= */
+    #progress-overlay[aria-hidden="true"]{ display:none; }
+    #progress-overlay{
+      position:fixed; inset:0; z-index:9999;
+      background:rgba(0,0,0,.45); backdrop-filter: blur(3px);
+      display:flex; align-items:center; justify-content:center;
+    }
+    #progress-overlay .po-card{
+      width:min(520px, 92vw); background:#12141a; border:1px solid #273047;
+      border-radius:14px; padding:16px 18px; box-shadow:var(--shadow);
+      color:#e9ecf1; text-align:right;
+    }
+    .po-title{ font-weight:800; font-size:1.1rem; margin-bottom:6px; }
+    .po-sub{ color:#9aa3ad; font-size:.95rem; margin-bottom:12px; }
+    .po-bar{ height:8px; background:#0e1220; border:1px solid #273047; border-radius:999px; overflow:hidden; }
+    .po-bar-fill{ height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--accent-2)); transition:width .16s ease; }
+
+    /* =========================
+       REDUCED MOTION
+       ========================= */
+    @media (prefers-reduced-motion: reduce){
+      .btn{transition:none} .table tbody tr{transition:none}
+      .po-bar-fill{transition:none}
+    }
+
+    /* =========================
+       RESPONSIVE
+       ========================= */
+    @media (max-width: 720px){
+      header{padding:12px 14px}
+      .btn{padding:8px 12px}
+      main{padding:0 12px}
+    }
+  </style>
+
+  {% block head %}{% endblock %}
+</head>
+
+<body>
+
+<header>
+  <div class="brand">
+    <span class="logo">VM</span>
+    <span>VulnMap</span>
+  </div>
+
+  <nav class="nav">
+    {% if current_user.is_authenticated %}
+      {% if current_user.is_admin %}
+        <a class="btn secondary {% if request.endpoint == 'admin_dashboard' %}active{% endif %}"
+           href="{{ url_for('admin_dashboard') }}">لوحة الإدارة</a>
+      {% endif %}
+      <a class="btn secondary {% if request.endpoint == 'user_dashboard' %}active{% endif %}"
+         href="{{ url_for('user_dashboard') }}">لوحة المستخدم</a>
+
+      <form method="post" action="{{ url_for('logout') }}" style="margin:0;">
+        <button class="btn">تسجيل الخروج</button>
+      </form>
+    {% else %}
+      <a class="btn secondary {% if request.endpoint == 'login' %}active{% endif %}"
+         href="{{ url_for('login') }}">تسجيل الدخول</a>
+      <a class="btn {% if request.endpoint == 'signup' %}active{% endif %}"
+         href="{{ url_for('signup') }}">إنشاء حساب</a>
+    {% endif %}
+  </nav>
+</header>
+
+<main>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat,msg in messages %}
+        <div class="flash {{ cat|default('info') }}">{{ msg }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<footer>
+  <small class="muted">© {{ 2025 }} VulnMap</small>
+</footer>
+
+<!-- Global progress overlay (hidden by default) -->
+<div id="progress-overlay" aria-hidden="true" style="display:none">
+  <div class="po-card">
+    <div class="po-title" id="po-title">جارٍ المعالجة...</div>
+    <div class="po-sub" id="po-sub">يتم تنفيذ الطلب، يرجى الانتظار لحظات.</div>
+    <div class="po-bar"><div class="po-bar-fill" id="po-bar-fill" style="width:0%"></div></div>
+  </div>
+</div>
+
+{% block scripts %}{% endblock %}
+<script>
+  // Optional niceties that do not alter your existing JS:
+  // 1) Auto-dismiss info flashes after a short delay (errors stay).
+  (function(){
+    var flashes = document.querySelectorAll('.flash.info, .flash.ok');
+    setTimeout(function(){
+      flashes.forEach(function(el){ el.style.transition = 'opacity .4s ease'; el.style.opacity = '0'; });
+      setTimeout(function(){ flashes.forEach(function(el){ el.remove && el.remove(); }); }, 420);
+    }, 3800);
+  })();
+
+  // 2) Simple progress overlay controller (call from your page scripts if desired)
+  window.VM = window.VM || {};
+  window.VM.progress = {
+    show: function(title, sub){
+      var wrap = document.getElementById('progress-overlay');
+      if(!wrap) return;
+      wrap.style.display = '';
+      wrap.setAttribute('aria-hidden','false');
+      if(title) document.getElementById('po-title').textContent = title;
+      if(sub) document.getElementById('po-sub').textContent = sub;
+      document.getElementById('po-bar-fill').style.width = '12%';
+      setTimeout(function(){ document.getElementById('po-bar-fill').style.width = '72%'; }, 120);
+    },
+    hide: function(){
+      var wrap = document.getElementById('progress-overlay');
+      if(!wrap) return;
+      document.getElementById('po-bar-fill').style.width = '100%';
+      setTimeout(function(){
+        wrap.setAttribute('aria-hidden','true');
+        wrap.style.display = 'none';
+        document.getElementById('po-bar-fill').style.width = '0%';
+      }, 220);
+    }
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,481 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="card">
+  <h2>لوحة الإدارة / Admin Dashboard</h2>
+  <p class="small muted">إدارة المنافذ وطلبات السحب وسجل الدخول.</p>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;">
+    <a class="btn secondary" href="{{ url_for('withdraw_admin.list_withdrawals') }}">
+      💰 طلبات السحب
+      {% if pending_withdrawals and pending_withdrawals > 0 %}
+        <span class="badge" style="margin-inline-start:8px;">{{ pending_withdrawals }}</span>
+      {% endif %}
+    </a>
+
+    <a class="btn secondary" href="{{ url_for('login_activity') }}">📝 سجل الدخول</a>
+  </div>
+</div>
+
+<br>
+
+<div class="card">
+  <h3>الإحصائيات</h3>
+  <ul>
+    <li>إجمالي المنافذ: <strong>{{ total_ports }}</strong></li>
+    <li>مكتشف: <strong>{{ total_discovered }}</strong></li>
+    <li>محلول: <strong>{{ total_resolved }}</strong></li>
+    <li>غير محلول: <strong>{{ total_unresolved }}</strong></li>
+  </ul>
+</div>
+
+<br>
+
+<!-- Live Server Health with axes -->
+<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+    <h3 style="margin:0;">حالة الخادم (CPU / RAM / RSS)</h3>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span id="health-degraded" class="chip" style="display:none;padding:.25rem .6rem;border-radius:999px;background:#2a2320;color:#f4d6c5;border:1px solid #5b3e33;">وضع مبسّط</span>
+      <button id="health-pause" class="btn tertiary small" type="button">⏸️ إيقاف مؤقت</button>
+      <button id="health-resume" class="btn small" type="button" disabled>▶️ استئناف</button>
+    </div>
+  </div>
+  <p class="small muted" style="margin-top:6px;">
+    تحديث كل ثانيتين. المحاور: <strong>يسار = نسبة %</strong> (CPU/RAM)، <strong>يمين = ذاكرة العملية (MB)</strong>.
+  </p>
+
+  <div style="position:relative;margin-top:8px;">
+    <!-- We draw axes, grid, series, and tooltip on one canvas -->
+    <canvas id="health-canvas"
+            style="width:100%;height:320px;display:block;border-radius:12px;border:1px solid var(--border);
+                   background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0));"></canvas>
+
+    <!-- Legend -->
+    <div id="health-legend" class="small muted"
+         style="position:absolute;inset-inline-end:10px;top:8px;background:rgba(0,0,0,.25);
+                padding:6px 10px;border-radius:999px;border:1px solid var(--border);
+                backdrop-filter: blur(3px);display:flex;gap:12px;align-items:center;">
+      <span style="display:inline-flex;align-items:center;gap:6px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:#5e81ff;box-shadow:0 0 8px rgba(94,129,255,.6);"></span> CPU%
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:6px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:#6fffc3;box-shadow:0 0 8px rgba(111,255,195,.6);"></span> RAM%
+      </span>
+      <span style="display:inline-flex;align-items:center;gap:6px;">
+        <span style="width:10px;height:10px;border-radius:50%;background:#c89cff;box-shadow:0 0 8px rgba(200,156,255,.6);"></span> RSS (MB)
+      </span>
+      <span id="health-live" style="opacity:.85;">• مباشر</span>
+    </div>
+
+    <!-- Tooltip -->
+    <div id="health-tip"
+         class="small"
+         style="position:absolute;display:none;pointer-events:none;z-index:5;
+                background:#111318;border:1px solid var(--border);border-radius:10px;
+                padding:8px 10px;color:var(--text);box-shadow:0 8px 20px rgba(0,0,0,.35);">
+    </div>
+  </div>
+
+  <!-- Axis captions -->
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+    <div class="small muted">المحور السيني (الزمن)</div>
+    <div class="small muted">المحور الصادي (النسبة % — يسار) / (MB — يمين)</div>
+  </div>
+</div>
+
+<br>
+
+<div class="card">
+  <h3>توليد منافذ للمستخدم</h3>
+  <form action="{{ url_for('admin.assign_ports') }}" method="post"
+        style="display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;">
+    <div>
+      <label>اسم المستخدم</label>
+      <select name="username" required>
+        {% if usernames and usernames|length > 0 %}
+          {% for u in usernames %}
+            <option value="{{ u }}">{{ u }}</option>
+          {% endfor %}
+        {% else %}
+          <option value="" disabled selected>لا يوجد مستخدمون</option>
+        {% endif %}
+      </select>
+    </div>
+
+    <div>
+      <label>العدد</label>
+      <input type="number" name="count" min="1" step="1" value="5" required>
+    </div>
+
+    <div>
+      <label>المكافأة (أدنى – أعلى)</label>
+      <div style="display:flex;gap:6px;">
+        <input type="number" name="reward_min" step="0.01" value="1.10">
+        <input type="number" name="reward_max" step="0.01" value="4.25">
+      </div>
+    </div>
+
+    <div>
+      <label>تأخير الحل (ثوانٍ)</label>
+      <div style="display:flex;gap:6px;">
+        <input type="number" name="delay_min" step="1" value="0">
+        <input type="number" name="delay_max" step="1" value="7">
+      </div>
+    </div>
+
+    <div style="grid-column:1/-1;">
+      <button class="btn">توليد</button>
+    </div>
+  </form>
+</div>
+
+<div class="card" style="margin-top:12px;">
+  <h3>صيانة أسبوعية</h3>
+  <p class="small muted">يحذف منافذ <code>generated_ports</code> ويُعيد <strong>الرصيد الحالي</strong> كما كان قبل التنظيف.</p>
+  <form method="post" action="{{ url_for('run_weekly_cleanup_route') }}">
+    <button class="btn danger"
+            type="submit"
+            onclick="return confirm('سيتم حذف جميع ملفات المنافذ المُولدة ثم استعادة الأرصدة. هل أنت متأكد؟')">
+      🧹 تشغيل التنظيف الآن
+    </button>
+  </form>
+</div>
+
+<div class="card" style="margin-top:12px;">
+  <h3>تصفير رصيد مستخدم</h3>
+  <p class="small muted">يضبط <strong>الرصيد الحالي</strong> للمستخدم المحدد إلى صفر دون تعديل السحوبات المعتمدة.</p>
+
+  <!-- Quick action for Rayan -->
+  <form method="post" action="{{ url_for('admin_reset_balance', username='rayan') }}">
+    <button class="btn danger"
+            type="submit"
+            onclick="return confirm('سيتم تصفير الرصيد الحالي للمستخدم rayan إلى 0. هل أنت متأكد؟')">
+      🧨 تصفير رصيد rayan إلى 0
+    </button>
+  </form>
+
+  <!-- (Optional) generic username input version:
+  <form method="post" action="{{ url_for('admin_reset_balance', username='__name__') }}"
+        onsubmit="this.action=this.action.replace('__name__', this.elements.username.value.toLowerCase().trim());">
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px;">
+      <input class="input" type="text" name="username" placeholder="اسم المستخدم" required style="max-width:220px;">
+      <button class="btn secondary" type="submit"
+              onclick="return confirm('سيتم تصفير الرصيد الحالي للمستخدم المحدد إلى 0. هل أنت متأكد؟')">
+        تصفير الرصيد لهذا المستخدم
+      </button>
+    </div>
+  </form>
+  -->
+</div>
+
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const canvas = document.getElementById('health-canvas');
+  if (!canvas) return;
+
+  const tip = document.getElementById('health-tip');
+  const liveBadge = document.getElementById('health-live');
+  const degradedBadge = document.getElementById('health-degraded');
+
+  // Themed colors
+  const C = {
+    cpu:      '#5e81ff', cpuGlow: 'rgba(94,129,255,.45)', cpuFillT: 'rgba(94,129,255,.20)', cpuFillB: 'rgba(94,129,255,0.04)',
+    ram:      '#6fffc3', ramGlow: 'rgba(111,255,195,.45)', ramFillT: 'rgba(111,255,195,.20)', ramFillB: 'rgba(111,255,195,0.04)',
+    rss:      '#c89cff', rssGlow: 'rgba(200,156,255,.45)',
+    grid: getComputedStyle(document.body).getPropertyValue('--border') || '#1d2230',
+    text: getComputedStyle(document.body).getPropertyValue('--muted') || '#9aa3ad',
+    fg:   getComputedStyle(document.body).getPropertyValue('--text')  || '#e9ecf1'
+  };
+
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const ctx = canvas.getContext('2d');
+  const S = {
+    w: 0, h: 0,
+    paused: false,
+    maxPoints: 120,      // ~4 minutes @ 2s
+    cpu: [], ram: [], rss: [], ts: [],
+    pad: { top: 18, right: 56, bottom: 28, left: 42 } // room for Y ticks (left %) & (right MB)
+  };
+
+  function resize() {
+    const r = canvas.getBoundingClientRect();
+    S.w = Math.floor(r.width * dpr);
+    S.h = Math.floor(r.height * dpr);
+    canvas.width = S.w;
+    canvas.height = S.h;
+    render(false);
+  }
+  resize(); window.addEventListener('resize', resize);
+
+  // Push & clamp
+  function push(a, v) { a.push(v); while (a.length > S.maxPoints) a.shift(); }
+
+  // Scales
+  function xToPx(i) {
+    const plotW = S.w - (S.pad.left + S.pad.right) * dpr;
+    const step = plotW / Math.max(1, S.maxPoints - 1);
+    return Math.round((S.pad.left * dpr) + i * step);
+  }
+  function yToPxLeft(pct) { // 0..100
+    const plotH = S.h - (S.pad.top + S.pad.bottom) * dpr;
+    const cl = Math.max(0, Math.min(100, pct));
+    return Math.round(S.h - S.pad.bottom * dpr - (cl / 100) * plotH);
+  }
+  function computeRssScale() {
+    const maxVal = Math.max(10, ...S.rss); // at least 10MB
+    // round up to a "nice" number (steps of 50 or 100)
+    const step = maxVal > 500 ? 100 : 50;
+    const top = Math.ceil(maxVal / step) * step;
+    return { top, step };
+  }
+  function yToPxRight(mb) {
+    const { top } = computeRssScale();
+    const plotH = S.h - (S.pad.top + S.pad.bottom) * dpr;
+    const cl = Math.max(0, Math.min(top, mb));
+    return Math.round(S.h - S.pad.bottom * dpr - (cl / top) * plotH);
+  }
+
+  // Grid & axes
+  function drawAxes() {
+    ctx.clearRect(0, 0, S.w, S.h);
+
+    const plotL = S.pad.left * dpr, plotR = S.w - S.pad.right * dpr;
+    const plotT = S.pad.top * dpr, plotB = S.h - S.pad.bottom * dpr;
+
+    // Background grid horizontal (left axis %)
+    ctx.save();
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 1 * dpr;
+    ctx.globalAlpha = 0.6;
+    [0,20,40,60,80,100].forEach(v => {
+      const y = yToPxLeft(v);
+      ctx.beginPath(); ctx.moveTo(plotL, y); ctx.lineTo(plotR, y); ctx.stroke();
+    });
+    ctx.restore();
+
+    // Left Y ticks/labels (%)
+    ctx.save();
+    ctx.fillStyle = C.text;
+    ctx.font = `${11 * dpr}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    [0,20,40,60,80,100].forEach(v => {
+      const y = yToPxLeft(v);
+      ctx.fillText(`${v}%`, (plotL - 6 * dpr), y);
+    });
+    ctx.restore();
+
+    // Right Y ticks/labels (MB)
+    const rssScale = computeRssScale();
+    ctx.save();
+    ctx.fillStyle = C.text;
+    ctx.font = `${11 * dpr}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    for (let v = 0; v <= rssScale.top; v += rssScale.step) {
+      const y = yToPxRight(v);
+      // faint right-side horizontal (optional)
+      ctx.save();
+      ctx.globalAlpha = 0.15;
+      ctx.strokeStyle = C.grid;
+      ctx.beginPath(); ctx.moveTo(plotL, y); ctx.lineTo(plotR, y); ctx.stroke();
+      ctx.restore();
+
+      ctx.fillText(`${v}`, (plotR + 6 * dpr), y);
+    }
+    ctx.restore();
+
+    // X axis ticks (time) — draw ~6 ticks
+    ctx.save();
+    ctx.fillStyle = C.text;
+    ctx.font = `${11 * dpr}px system-ui,-apple-system,Segoe UI,Roboto,Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const n = S.ts.length;
+    const tickCount = 6;
+    for (let t = 0; t < tickCount; t++) {
+      const idx = Math.round((n - 1) * (t / (tickCount - 1)));
+      if (idx < 0 || idx >= n) continue;
+      const x = xToPx(idx);
+      const ts = S.ts[idx] || '';
+      const hhmmss = ts ? new Date(ts).toLocaleTimeString([], { hour12: false }) : '';
+      // small vertical tick
+      ctx.save();
+      ctx.strokeStyle = C.grid;
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath(); ctx.moveTo(x, plotB); ctx.lineTo(x, plotB + 4 * dpr); ctx.stroke();
+      ctx.restore();
+      ctx.fillText(hhmmss, x, plotB + 6 * dpr);
+    }
+    ctx.restore();
+
+    // Plot border (optional subtle frame)
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = C.grid;
+    ctx.lineWidth = 1 * dpr;
+    ctx.strokeRect(plotL, plotT, plotR - plotL, plotB - plotT);
+    ctx.restore();
+  }
+
+  function gradient(top, bottom) {
+    const g = ctx.createLinearGradient(0, 0, 0, S.h);
+    g.addColorStop(0, top); g.addColorStop(1, bottom); return g;
+  }
+
+  function drawLine(series, yMap, color, width, glow) {
+    if (series.length < 2) return;
+    const plotW = S.w - (S.pad.left + S.pad.right) * dpr;
+    const step = plotW / Math.max(1, S.maxPoints - 1);
+
+    ctx.save();
+    ctx.lineWidth = (width || 3.5) * dpr;
+    ctx.strokeStyle = color;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    if (glow) { ctx.shadowColor = glow; ctx.shadowBlur = 8 * dpr; }
+
+    ctx.beginPath();
+    for (let i = 0; i < series.length; i++) {
+      const x = (S.pad.left * dpr) + i * step;
+      const y = yMap(series[i]);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawArea(series, yMap, topCol, botCol) {
+    if (series.length < 2) return;
+    const plotW = S.w - (S.pad.left + S.pad.right) * dpr;
+    const step = plotW / Math.max(1, S.maxPoints - 1);
+
+    ctx.save();
+    ctx.beginPath();
+    for (let i = 0; i < series.length; i++) {
+      const x = (S.pad.left * dpr) + i * step;
+      const y = yMap(series[i]);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    const baseY = yMap === yToPxLeft ? yToPxLeft(0) : yToPxRight(0);
+    ctx.lineTo((S.pad.left * dpr) + (series.length - 1) * step, baseY);
+    ctx.lineTo((S.pad.left * dpr), baseY);
+    ctx.closePath();
+    ctx.fillStyle = gradient(topCol, botCol);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function render(degraded) {
+    drawAxes();
+
+    // Areas first (CPU/RAM % on left axis)
+    drawArea(S.cpu, yToPxLeft, C.cpuFillT, C.cpuFillB);
+    drawArea(S.ram, yToPxLeft, C.ramFillT, C.ramFillB);
+
+    // Lines: CPU, RAM, RSS
+    drawLine(S.cpu, yToPxLeft, C.cpu, 3.6, C.cpuGlow);
+    drawLine(S.ram, yToPxLeft, C.ram, 3.6, C.ramGlow);
+    drawLine(S.rss, yToPxRight, C.rss, 2.8, C.rssGlow);
+
+    if (degradedBadge) degradedBadge.style.display = degraded ? '' : 'none';
+    if (liveBadge)     liveBadge.textContent = S.paused ? '• متوقف' : '• مباشر';
+  }
+
+  async function fetchMetrics() {
+    if (S.paused) return;
+    try {
+      const res = await fetch("{{ url_for('admin_metrics_json') }}", { cache: "no-store" });
+      const j = await res.json();
+      push(S.cpu, Number(j.cpu_percent || 0));
+      push(S.ram, Number(j.ram_percent || 0));
+      // Convert RSS bytes -> MB (rounded to 1 decimal)
+      const rssMB = (Number(j.process_rss || 0) / (1024 * 1024));
+      push(S.rss, Math.max(0, Math.round(rssMB * 10) / 10));
+      push(S.ts, j.ts || "");
+      render(!!j.degraded);
+    } catch (e) {
+      push(S.cpu, 0); push(S.ram, 0); push(S.rss, 0); push(S.ts, "");
+      render(true);
+    }
+  }
+
+  // Poll every 2s
+  const intervalMs = 2000;
+  let timer = setInterval(fetchMetrics, intervalMs);
+  fetchMetrics(); // first sample
+
+  // Pause/Resume
+  const btnPause  = document.getElementById('health-pause');
+  const btnResume = document.getElementById('health-resume');
+  btnPause && btnPause.addEventListener('click', () => {
+    S.paused = true; btnPause.disabled = true; btnResume.disabled = false;
+  });
+  btnResume && btnResume.addEventListener('click', () => {
+    S.paused = false; btnPause.disabled = false; btnResume.disabled = true; fetchMetrics();
+  });
+
+  // Hover tooltip
+  canvas.addEventListener('mousemove', (e) => {
+    if (!S.ts.length) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * dpr;
+
+    // Find nearest index by x
+    const plotW = S.w - (S.pad.left + S.pad.right) * dpr;
+    const step  = plotW / Math.max(1, S.maxPoints - 1);
+    let i = Math.round((x - S.pad.left * dpr) / step);
+    i = Math.max(0, Math.min(S.ts.length - 1, i));
+
+    // Cursor line
+    render(false); // redraw
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.35)';
+    ctx.lineWidth = 1 * dpr;
+    const cx = xToPx(i);
+    ctx.beginPath(); ctx.moveTo(cx, S.pad.top * dpr); ctx.lineTo(cx, S.h - S.pad.bottom * dpr); ctx.stroke();
+    ctx.restore();
+
+    // Tooltip content
+    const ts = S.ts[i] ? new Date(S.ts[i]).toLocaleTimeString([], { hour12:false }) : '';
+    const cpu = (S.cpu[i] ?? 0).toFixed(1);
+    const ram = (S.ram[i] ?? 0).toFixed(1);
+    const rss = (S.rss[i] ?? 0).toFixed(1);
+    tip.innerHTML = `
+      <div style="font-weight:700;margin-bottom:4px;">${ts || '—'}</div>
+      <div>CPU: <strong style="color:${C.cpu};">${cpu}%</strong></div>
+      <div>RAM: <strong style="color:${C.ram};">${ram}%</strong></div>
+      <div>RSS: <strong style="color:${C.rss};">${rss} MB</strong></div>
+    `;
+
+    // Tooltip position (avoid overflow)
+    const tipW = 160, tipH = 90; // px approx at 1x
+    let tx = e.clientX - rect.left + 14;
+    let ty = e.clientY - rect.top  + 14;
+    if (tx + tipW > rect.width) tx = e.clientX - rect.left - tipW - 14;
+    if (ty + tipH > rect.height) ty = e.clientY - rect.top  - tipH - 14;
+
+    tip.style.left = `${tx}px`;
+    tip.style.top  = `${ty}px`;
+    tip.style.display = 'block';
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    tip.style.display = 'none';
+    render(false); // remove cursor line
+  });
+
+  if (window.VM && VM.progress) VM.progress.hide();
+})();
+</script>
+
+
+{% endblock %}
+
+

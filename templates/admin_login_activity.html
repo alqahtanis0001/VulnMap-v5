@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>سجل تسجيل الدخول</h2>
+  {% if lines and lines|length > 0 %}
+    <pre style="white-space:pre-wrap;max-height:60vh;overflow:auto;border:1px solid #333;padding:10px;border-radius:8px;">
+{{ lines|join('\n') }}
+    </pre>
+  {% else %}
+    <p class="muted">لا يوجد سجلات حتى الآن.</p>
+  {% endif %}
+  <a class="btn secondary" href="{{ url_for('admin_dashboard') }}" style="margin-top:10px;">⬅ رجوع</a>
+</div>
+{% endblock %}

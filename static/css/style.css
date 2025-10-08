@@ -1,0 +1,317 @@
+/* ==========================================================================
+   VulnMap — Global Styles (Dark, RTL-friendly, Responsive)
+   ========================================================================== */
+
+/* Root tokens */
+:root{
+  --bg: #0c0d10;
+  --bg-soft: #0f1218;
+  --card: #111318;
+  --elev: rgba(255,255,255,0.02);
+  --text: #e9ecf1;
+  --text-muted: #9aa3ad;
+  --link: #c9d7ff;
+
+  --primary: #2a6fff;
+  --primary-600: #255ee0;
+  --secondary: #3a4560;
+  --tertiary: #343a4a;
+
+  --ok: #66d9a8;
+  --ok-ink: #b7f5d9;
+  --err: #ff6b6b;
+  --err-ink: #ffd2d6;
+  --info: #6ca0ff;
+
+  --border: #1d2230;
+  --focus: #85b7ff;
+
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 18px;
+
+  --shadow-1: 0 10px 25px rgba(0,0,0,.35);
+  --shadow-2: 0 6px 16px rgba(0,0,0,.25);
+
+  --sp-1: 6px;
+  --sp-2: 10px;
+  --sp-3: 14px;
+  --sp-4: 18px;
+}
+
+/* Reset-ish */
+*{ box-sizing: border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  background: var(--bg) radial-gradient(1200px 800px at 20% -10%, rgba(255,255,255,.04), transparent) no-repeat;
+  color: var(--text);
+  font: 16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Arial,Helvetica,sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Links */
+a{ color: var(--link); text-decoration:none; }
+a:hover{ text-decoration:underline; }
+
+/* Header */
+header{
+  position: sticky; top:0; z-index: 50;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: var(--sp-3) var(--sp-4);
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,0));
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: saturate(130%) blur(6px);
+}
+.brand{ font-weight:800; letter-spacing:.4px; }
+.nav{ display:flex; gap: var(--sp-2); align-items:center; }
+
+/* Main & footer */
+main{ max-width: 1100px; margin: 26px auto; padding: 0 var(--sp-3); }
+footer{ margin: 40px 0 20px; text-align:center; color: var(--text-muted); }
+
+/* Cards */
+.card{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-3) var(--sp-4);
+  box-shadow: var(--shadow-1);
+}
+.card + .card{ margin-top: var(--sp-3); }
+
+/* Typography helpers */
+.small{ font-size: .92rem; }
+.muted{ color: var(--text-muted); }
+.rtl{ direction: rtl; text-align: right; }
+
+/* Buttons */
+.btn{
+  --btn-bg: var(--primary);
+  --btn-ink: #fff;
+  --btn-bd: var(--primary);
+  appearance:none; border:1px solid var(--btn-bd);
+  background: var(--btn-bg); color: var(--btn-ink);
+  padding: 9px 14px; border-radius: var(--radius-sm);
+  font-weight: 700; cursor:pointer; transition: transform .04s ease, box-shadow .2s ease, background .2s ease;
+  box-shadow: 0 4px 12px rgba(42,111,255,.25);
+}
+.btn:hover{ transform: translateY(-1px); box-shadow: 0 8px 18px rgba(42,111,255,.28); }
+.btn:active{ transform: translateY(0); }
+.btn:disabled{ opacity:.65; cursor:not-allowed; box-shadow:none; }
+
+.btn.secondary{
+  --btn-bg: transparent; --btn-bd: var(--secondary); --btn-ink: var(--link);
+  box-shadow: none;
+}
+.btn.secondary:hover{ background: rgba(255,255,255,.03); }
+
+.btn.tertiary{
+  --btn-bg: transparent; --btn-bd: var(--tertiary); --btn-ink: var(--text-muted);
+  box-shadow: none;
+}
+.btn.tertiary:hover{ background: rgba(255,255,255,.02); }
+
+/* Inputs */
+input, select, textarea, .input{
+  width:100%; appearance:none;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1px solid #2a2f44; background: var(--bg-soft); color: var(--text);
+  outline: none; transition: border-color .2s ease, box-shadow .2s ease;
+}
+input:focus, select:focus, textarea:focus, .input:focus{
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px rgba(133,183,255,.15);
+}
+
+/* Tables */
+.table{ width:100%; border-collapse: collapse; overflow:hidden; border-radius: var(--radius); }
+.table thead th{
+  text-align: right; font-weight:800; color:#b8c0cc;
+  background: #0f1218; border-bottom: 1px solid var(--border);
+  padding: 12px 10px;
+}
+.table td{
+  border-top: 1px solid var(--border);
+  padding: 11px 10px; vertical-align: middle; text-align: right;
+}
+.table tr:hover td{ background: rgba(255,255,255,.01); }
+
+/* Badges */
+.badge{
+  display:inline-block; min-width: 22px; padding: 2px 8px;
+  border-radius: 999px; background: rgba(108,160,255,.14);
+  color:#cfe0ff; border: 1px solid rgba(108,160,255,.35);
+  font-size: .85rem; font-weight: 700; vertical-align: middle; margin-inline-start: 6px;
+}
+
+/* Flash messages */
+.flash{
+  margin: 10px 0; padding: 10px 12px; border-radius: var(--radius-sm);
+  border:1px solid; background: #0f1218;
+}
+.flash.ok{ border-color:#175c42; background:#0b1d17; color: var(--ok-ink); }
+.flash.err{ border-color:#8a2730; background:#1b0e12; color: var(--err-ink); }
+.flash.info{ border-color:#294b93; background:#0b1424; color:#cfe0ff; }
+
+/* Forms layout helpers */
+form.inline{ display:flex; gap: var(--sp-2); align-items:center; margin:0; }
+.grid-2{ display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: var(--sp-3); }
+.grid-3{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: var(--sp-3); }
+.grid-4{ display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: var(--sp-3); }
+@media (max-width: 900px){
+  .grid-4{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 640px){
+  .grid-3, .grid-2, .grid-4{ grid-template-columns: 1fr; }
+}
+
+/* Utilities */
+.row{ display:flex; gap: var(--sp-3); align-items:center; flex-wrap: wrap; }
+.gap-1{ gap: var(--sp-1); } .gap-2{ gap: var(--sp-2); } .gap-3{ gap: var(--sp-3); } .gap-4{ gap: var(--sp-4); }
+.mt-1{ margin-top: var(--sp-1); } .mt-2{ margin-top: var(--sp-2); } .mt-3{ margin-top: var(--sp-3); } .mt-4{ margin-top: var(--sp-4); }
+.mb-1{ margin-bottom: var(--sp-1); } .mb-2{ margin-bottom: var(--sp-2); } .mb-3{ margin-bottom: var(--sp-3); } .mb-4{ margin-bottom: var(--sp-4); }
+.text-center{ text-align:center; }
+
+/* Subtle separators */
+.hr{
+  height:1px; background: linear-gradient(90deg, transparent, var(--border), transparent);
+  border:none; margin: var(--sp-3) 0;
+}
+
+/* Animations (optional) */
+@keyframes fadeInUp{
+  from{ opacity:0; transform: translateY(6px); }
+  to{ opacity:1; transform: translateY(0); }
+}
+.card, .flash{ animation: fadeInUp .25s ease both; }
+
+/* Buttons: status colors (optional utility) */
+.btn.ok{ --btn-bg: #0f2b21; --btn-bd:#175c42; --btn-ink:#b7f5d9; }
+.btn.err{ --btn-bg: #2a0f14; --btn-bd:#8a2730; --btn-ink:#ffd2d6; }
+.btn.info{ --btn-bg: #0d1a37; --btn-bd:#294b93; --btn-ink:#cfe0ff; }
+
+/* Responsive tweaks */
+@media (max-width: 480px){
+  header{ padding: var(--sp-2) var(--sp-3); }
+  .nav{ gap: var(--sp-1); }
+  .btn{ padding: 8px 12px; }
+}
+
+/* Print (keep essentials) */
+@media print{
+  header, footer { display:none !important; }
+  body{ background: #fff; color: #000; }
+  .card{ border: 1px solid #ccc; box-shadow:none; }
+  a{ color: #000; text-decoration: underline; }
+}
+
+/* === Progress Overlay === */
+#progress-overlay{
+  position: fixed; inset: 0; z-index: 1000;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(5,7,12,.55);
+  backdrop-filter: blur(6px) saturate(130%);
+}
+#progress-overlay.active{ display:flex; }
+
+#progress-overlay .po-card{
+  width: min(520px, 92vw);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--sp-4);
+  box-shadow: var(--shadow-2);
+  text-align: right; direction: rtl;
+  animation: fadeInUp .2s ease both;
+}
+
+#progress-overlay .po-title{
+  font-weight: 800; margin-bottom: 6px;
+}
+#progress-overlay .po-sub{
+  color: var(--text-muted); font-size: .95rem; margin-bottom: 14px;
+}
+
+#progress-overlay .po-bar{
+  width: 100%; height: 10px; border-radius: 999px;
+  background: #0f121a; border: 1px solid #2a2f44; overflow: hidden;
+}
+#progress-overlay .po-bar-fill{
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--primary), #7aa7ff);
+  transition: width .25s ease;
+}
+
+/* === Progress Overlay ===================================================== */
+#progress-overlay{
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.45);
+  backdrop-filter: blur(4px) saturate(120%);
+  z-index: 9999;
+}
+#progress-overlay[aria-hidden="true"]{ display: none; }
+
+.po-card{
+  width: min(520px, 86vw);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 18px);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-2);
+  text-align: center;
+}
+.po-title{ font-weight: 800; margin-bottom: 4px; }
+.po-sub{ color: var(--text-muted); margin-bottom: 12px; }
+
+.po-bar{
+  height: 10px; border-radius: 999px; overflow: hidden;
+  background: #0f1218; border: 1px solid var(--border);
+}
+.po-bar-fill{
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--primary), var(--info));
+  transition: width .25s ease;
+}
+
+.mini-progress[hidden] { display: none !important; }
+
+/* Mini progress — make sure it doesn't wrap/collapse and is visible on dark rows */
+.row-actions { flex-wrap: nowrap; }
+
+.mini-progress { display: flex; align-items: center; gap: 8px; min-width: 180px; }
+.mini-progress[hidden] { display: none !important; }
+
+.mini-progress .mini-bar {
+  height: 8px;
+  flex: 0 0 140px;              /* don't shrink; fixed visual width */
+  background: #111622;          /* slightly lighter than row so it's visible */
+  border: 1px solid #2a2f44;    /* outline so you can see the track */
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.mini-progress .mini-fill {
+  height: 100%;
+  width: 0%;
+  background: #2a6fff;          /* matches your primary */
+  transition: width .10s linear;
+}
+
+.mini-progress .mini-txt {
+  white-space: nowrap;          /* keep '⏳ 12 ث' on one line */
+}
+
+/* Ensure hidden attribute always hides mini-progress */
+.mini-progress[hidden] { display: none !important; }
+
+/* Ensure hidden always wins until we unhide */
+.mini-progress[hidden] { display: none !important; }
+
+/* Smooth width change for the fill */
+.mini-bar { width: 120px; height: 6px; background: #2a2a2a; border-radius: 999px; overflow: hidden; }
+.mini-fill { height: 100%; width: 0%; transition: width .25s linear; }
+
+.mini-fill { transition: width 0.25s linear; }
