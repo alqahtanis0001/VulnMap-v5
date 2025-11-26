@@ -186,6 +186,96 @@
 </div>
 
 <div class="card" style="margin-top:12px;">
+  <h3>جدولة توليد المنافذ</h3>
+  <p class="small muted">اختر المستخدم والإعدادات وسيقوم النظام بتوليد المنافذ تلقائياً في الوقت المحدد.</p>
+  <form action="{{ url_for('admin_schedule_ports') }}" method="post"
+        style="display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label>اسم المستخدم</label>
+      <select name="username" required>
+        {% if usernames and usernames|length > 0 %}
+          {% for u in usernames %}
+            <option value="{{ u }}">{{ u }}</option>
+          {% endfor %}
+        {% else %}
+          <option value="" disabled selected>لا يوجد مستخدمون</option>
+        {% endif %}
+      </select>
+    </div>
+    <div>
+      <label>العدد</label>
+      <input type="number" name="count" min="1" step="1" value="5" required>
+    </div>
+    <div>
+      <label>المكافأة (أدنى – أعلى)</label>
+      <div style="display:flex;gap:6px;">
+        <input type="number" name="reward_min" step="0.01" value="1.10">
+        <input type="number" name="reward_max" step="0.01" value="4.25">
+      </div>
+    </div>
+    <div>
+      <label>تأخير الحل (ثوانٍ)</label>
+      <div style="display:flex;gap:6px;">
+        <input type="number" name="delay_min" step="1" value="0">
+        <input type="number" name="delay_max" step="1" value="7">
+      </div>
+    </div>
+    <div style="grid-column:1/3;">
+      <label>وقت التشغيل</label>
+      <input type="datetime-local" name="run_at" required value="{{ scheduled_run_at_default }}">
+    </div>
+    <div style="grid-column:1/-1;">
+      <button class="btn">جدولة التوليد</button>
+    </div>
+  </form>
+
+  <div style="margin-top:12px;">
+    {% if scheduled_jobs and scheduled_jobs|length > 0 %}
+      <table class="table" style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr>
+            <th>المستخدم</th>
+            <th>العدد</th>
+            <th>المكافأة</th>
+            <th>التأخير</th>
+            <th>وقت التشغيل</th>
+            <th>الوقت المتبقي</th>
+            <th>إجراء</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for job in scheduled_jobs %}
+            <tr>
+              <td>{{ job.username }}</td>
+              <td>{{ job.count }}</td>
+              <td>{{ job.reward_min }} – {{ job.reward_max }}</td>
+              <td>{{ job.delay_min }} – {{ job.delay_max }} ث</td>
+              <td>{{ job.run_at_display }}</td>
+              <td>
+                {% if job.remaining_minutes is not none %}
+                  {{ job.remaining_minutes }} دقيقة
+                {% else %}
+                  —
+                {% endif %}
+              </td>
+              <td>
+                <form method="post" action="{{ url_for('admin_cancel_schedule', job_id=job.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn tertiary small" type="submit">إلغاء</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="small muted" style="margin:0;">لا توجد مهام مجدولة حالياً.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card" style="margin-top:12px;">
   <h3>صيانة أسبوعية</h3>
   <p class="small muted">يحذف منافذ <code>generated_ports</code> ويُعيد <strong>الرصيد الحالي</strong> كما كان قبل التنظيف.</p>
   <form method="post" action="{{ url_for('run_weekly_cleanup_route') }}">

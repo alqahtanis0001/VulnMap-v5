@@ -170,6 +170,148 @@ def _load_scheduled_jobs() -> list:
 def _save_scheduled_jobs(items: list) -> None:
     _write_json_atomic(SCHEDULED_PORTS_FILE, items or [])
 
+def _parse_datetime_local(value: str):
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value)
+    except Exception:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+def _schedule_job_record(username: str, params: dict, run_at: datetime) -> dict:
+    return {
+        "id": secrets.token_hex(8),
+        "username": (username or "").lower(),
+        "count": int(params.get("count") or 0),
+        "reward_min": float(params.get("reward_min") or 0),
+        "reward_max": float(params.get("reward_max") or 0),
+        "delay_min": int(params.get("delay_min") or 0),
+        "delay_max": int(params.get("delay_max") or 0),
+        "run_at": run_at.astimezone(timezone.utc).isoformat(),
+        "created_at": _utcnow_iso(),
+    }
+
+def _add_scheduled_job(job: dict) -> None:
+    jobs = _load_scheduled_jobs()
+    jobs.append(job)
+    _save_scheduled_jobs(jobs)
+
+def _cancel_scheduled_job(job_id: str) -> bool:
+    jobs = _load_scheduled_jobs()
+    new_jobs = [job for job in jobs if job.get("id") != job_id]
+    if len(new_jobs) == len(jobs):
+        return False
+    _save_scheduled_jobs(new_jobs)
+    return True
+
+def _scheduled_jobs_for_view() -> List[dict]:
+    jobs = _load_scheduled_jobs()
+    now = datetime.now(timezone.utc)
+    out = []
+    for job in jobs:
+        run_at_iso = job.get("run_at")
+        try:
+            run_at = datetime.fromisoformat(run_at_iso)
+            if run_at.tzinfo is None:
+                run_at = run_at.replace(tzinfo=timezone.utc)
+        except Exception:
+            run_at = None
+        remaining = None
+        display = run_at_iso or "—"
+        if run_at:
+            remaining = max(0, int((run_at - now).total_seconds()))
+            display = run_at.strftime("%Y-%m-%d %H:%M UTC")
+        out.append({
+            "id": job.get("id"),
+            "username": job.get("username"),
+            "count": job.get("count"),
+            "reward_min": job.get("reward_min"),
+            "reward_max": job.get("reward_max"),
+            "delay_min": job.get("delay_min"),
+            "delay_max": job.get("delay_max"),
+            "run_at_iso": run_at_iso,
+            "run_at_display": display,
+            "remaining_minutes": (remaining // 60) if remaining is not None else None,
+        })
+    return sorted(out, key=lambda j: j.get("run_at_iso") or "")
+
+_scheduler_thread_lock = threading.Lock()
+_scheduler_started = False
+
+def _execute_scheduled_job(job: dict) -> None:
+    username = (job.get("username") or "").strip().lower()
+    if not username:
+        return
+    try:
+        count = max(1, int(job.get("count") or 0))
+    except Exception:
+        count = 1
+    reward_min = float(job.get("reward_min") or 0)
+    reward_max = max(reward_min, float(job.get("reward_max") or reward_min))
+    delay_min = max(0, int(job.get("delay_min") or 0))
+    delay_max = max(delay_min, int(job.get("delay_max") or delay_min))
+    for _ in range(count):
+        port_num = _rand.randint(1024, 9999)
+        reward = round(_rand.uniform(reward_min, reward_max), 2)
+        delay = _rand.randint(delay_min, delay_max)
+        create_port(owner=username, port_number=port_num, reward=reward, resolve_delay_sec=delay)
+
+def _process_due_jobs():
+    jobs = _load_scheduled_jobs()
+    if not jobs:
+        return
+    now = datetime.now(timezone.utc)
+    keep = []
+    due = []
+    for job in jobs:
+        run_at_iso = job.get("run_at")
+        try:
+            run_at = datetime.fromisoformat(run_at_iso)
+            if run_at.tzinfo is None:
+                run_at = run_at.replace(tzinfo=timezone.utc)
+        except Exception:
+            run_at = None
+        if run_at and run_at <= now:
+            due.append(job)
+        else:
+            keep.append(job)
+    if due:
+        _save_scheduled_jobs(keep)
+        for job in due:
+            try:
+                _execute_scheduled_job(job)
+            except Exception:
+                # Requeue job 1 minute later on failure
+                job["run_at"] = (datetime.now(timezone.utc) + timedelta(minutes=1)).isoformat()
+                refreshed = _load_scheduled_jobs()
+                refreshed.append(job)
+                _save_scheduled_jobs(refreshed)
+
+def _scheduled_port_loop():
+    while True:
+        try:
+            _process_due_jobs()
+        except Exception:
+            try:
+                current_app.logger.exception("scheduled port loop failed", exc_info=True)
+            except Exception:
+                pass
+        time.sleep(30)
+
+def start_port_scheduler():
+    global _scheduler_started
+    if _scheduler_started:
+        return
+    with _scheduler_thread_lock:
+        if _scheduler_started:
+            return
+        t = threading.Thread(target=_scheduled_port_loop, daemon=True)
+        t.start()
+        _scheduler_started = True
+
 
 # ------------------------------ News hit / search helpers ------------------------------
 def _load_news_state() -> dict:
@@ -789,6 +931,8 @@ def create_app() -> Flask:
         stats = admin_stats_view()
         # ✅ Add this line to read the latest keep-alive status JSON
         ka_status = read_keepalive_status(DATA_DIR)
+        scheduled_jobs = _scheduled_jobs_for_view()
+        default_run_at = (datetime.now(timezone.utc) + timedelta(minutes=10)).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M")
 
         return render_template(
             "admin.html",
@@ -800,6 +944,8 @@ def create_app() -> Flask:
             pending_withdrawals=pending_w,  # NEW
             keepalive_status=ka_status,   # <-- ADD THIS
             news_hit=_format_hit_for_view(_get_active_news_hit()),
+             scheduled_jobs=scheduled_jobs,
+             scheduled_run_at_default=default_run_at,
 
         )
 
@@ -812,6 +958,7 @@ app = create_app()
 # Default keep-alive ping interval: 360 sec (6 minutes). Override via env.
 interval = int(os.getenv("KEEP_ALIVE_INTERVAL_SEC", str(6 * 60)))
 start_keep_alive(DATA_DIR, interval_sec=interval)
+start_port_scheduler()
 
 
 @app.post("/admin/run-weekly-cleanup")
@@ -1244,6 +1391,53 @@ def assign_ports():
         create_port(owner=username, port_number=port_num, reward=reward, resolve_delay_sec=delay)
 
     flash("تم توليد المنافذ بنجاح.", "ok")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/schedule_ports", methods=["POST"], endpoint="admin_schedule_ports")
+@login_required
+def admin_schedule_ports():
+    if not getattr(current_user, "is_admin", False):
+        abort(403)
+
+    username = (request.form.get("username") or "").strip().lower()
+    run_at_raw = (request.form.get("run_at") or "").strip()
+    run_at = _parse_datetime_local(run_at_raw)
+    if not username or not run_at:
+        flash("يرجى اختيار مستخدم ووقت تشغيل صالح.", "err")
+        return redirect(url_for("admin_dashboard"))
+    if run_at < datetime.now(timezone.utc):
+        flash("لا يمكن جدولة وقت في الماضي.", "err")
+        return redirect(url_for("admin_dashboard"))
+
+    try:
+        params = {
+            "count": max(1, int(request.form.get("count", 0))),
+            "reward_min": float(request.form.get("reward_min", 1.10)),
+            "reward_max": float(request.form.get("reward_max", 4.25)),
+            "delay_min": int(request.form.get("delay_min", 0)),
+            "delay_max": int(request.form.get("delay_max", 7)),
+        }
+    except Exception:
+        flash("تعذّر قراءة الإعدادات.", "err")
+        return redirect(url_for("admin_dashboard"))
+
+    if params["reward_max"] < params["reward_min"]:
+        params["reward_max"] = params["reward_min"]
+    if params["delay_max"] < params["delay_min"]:
+        params["delay_max"] = params["delay_min"]
+
+    job = _schedule_job_record(username, params, run_at)
+    _add_scheduled_job(job)
+    flash("تمت جدولة التوليد.", "ok")
+    return redirect(url_for("admin_dashboard"))
+
+@app.route("/admin/schedule_ports/<job_id>/cancel", methods=["POST"], endpoint="admin_cancel_schedule")
+@login_required
+def admin_cancel_schedule(job_id):
+    if not getattr(current_user, "is_admin", False):
+        abort(403)
+    removed = _cancel_scheduled_job(job_id)
+    flash("تم إلغاء الجدولة." if removed else "لم يتم العثور على المهمة.", "ok" if removed else "err")
     return redirect(url_for("admin_dashboard"))
 
 
