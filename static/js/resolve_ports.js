@@ -125,16 +125,6 @@
     VM.updateCountsWallet(payload);
   }
 
-  function finalizeArchive(row, payload) {
-    if (!row) return;
-    const status = row.querySelector('.td-status');
-    const actions = row.querySelector('.row-actions');
-    const mini   = row.querySelector('.mini-progress');
-    if (mini) mini.hidden = true;
-    if (status) status.textContent = '📦 مؤرشف';
-    if (actions) actions.innerHTML = '<span class="small muted">—</span>';
-  }
-
   function refreshFromPayload(payload) {
     if (!payload) return;
     if (payload.discovered && payload.resolved && payload.archived && VM.render && typeof VM.render.renderAll === 'function') {
@@ -300,7 +290,6 @@
 
     apiArchive(pid).then(data => {
       if (data && data.ok) {
-        finalizeArchive(row, data);
         refreshFromPayload(data);
       } else {
         // optional toast

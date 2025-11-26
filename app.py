@@ -1132,11 +1132,18 @@ def user_archive_json():
     result = archive_port(current_user.username, pid)
     vm = user_dashboard_view(current_user.username)
 
+    discovered = [_port_row(p) for p in vm["discovered"]]
+    resolved   = [_port_row(p) for p in vm["resolved"]]
+    archived   = [_port_row(p) for p in vm["archived"]]
+
     return jsonify({
         "ok": bool(result.get("ok")),
         "error": result.get("error"),
         "port_id": pid,
-        "counts": {"discovered": len(vm["discovered"]), "resolved": len(vm["resolved"])},
+        "discovered": discovered,
+        "resolved": resolved,
+        "archived": archived,
+        "counts": {"discovered": len(discovered), "resolved": len(resolved)},
         "wallet": vm["wallet"]
     }), (200 if result.get("ok") else 400)
 
