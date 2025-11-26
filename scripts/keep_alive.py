@@ -1,5 +1,5 @@
 # scripts/keep_alive.py
-# Keeps a Render/Flask app "warm" by pinging a health URL every 6 minutes.
+# Keeps a Render/Flask app "warm" by pinging multiple health URLs frequently
 # - Silent background daemon thread
 # - Prints a line to console on each ping
 # - Persists last status to data/keepalive/status.json for admin display
@@ -15,7 +15,7 @@ _started_lock = threading.Lock()
 _started = False
 
 # ---- Defaults ----
-DEFAULT_INTERVAL_SEC = 6 * 60  # 6 minutes
+DEFAULT_INTERVAL_SEC = 4 * 60  # 4 minutes
 REL_STATUS_PATH = Path("keepalive") / "status.json"
 
 
@@ -45,7 +45,7 @@ def _read_json(path: Path, default):
         return default
 
 
-def _resolve_ping_url() -> str:
+def _resolve_ping_urls() -> list[str]:
     """
     Order of preference:
       1) KEEP_ALIVE_URL          (explicit override)
@@ -53,16 +53,33 @@ def _resolve_ping_url() -> str:
       3) 127.0.0.1:$PORT/login   (local fallback)
     """
     env_url = os.getenv("KEEP_ALIVE_URL", "").strip()
+    urls = []
     if env_url:
-        return env_url
+        urls.append(env_url)
 
     host = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
     if host:
         # Public URL keeps free instances awake
-        return f"https://{host}/login"
+        urls.extend([
+            f"https://{host}/",
+            f"https://{host}/login",
+            f"https://{host}/dashboard"
+        ])
 
     port = os.getenv("PORT", "5000")
-    return f"http://127.0.0.1:{port}/login"
+    urls.extend([
+        f"http://127.0.0.1:{port}/",
+        f"http://127.0.0.1:{port}/login",
+    ])
+    # de-dup and keep order
+    seen = set()
+    deduped = []
+    for u in urls:
+        if not u or u in seen:
+            continue
+        deduped.append(u)
+        seen.add(u)
+    return deduped or [f"http://127.0.0.1:{port}/"]
 
 
 def _ping_once(url: str, timeout: float = 10.0) -> tuple[bool, int | None, str | None]:
@@ -78,46 +95,52 @@ def _ping_once(url: str, timeout: float = 10.0) -> tuple[bool, int | None, str |
 
 
 def _loop(status_file: Path, interval_sec: int) -> None:
-    url = _resolve_ping_url()
-    print(f"[keep_alive] Started. Interval={interval_sec}s, URL={url}")
+    urls = _resolve_ping_urls()
+    print(f"[keep_alive] Started. Interval={interval_sec}s, URLs={urls}")
     try:
         _write_json_atomic(status_file, {
             "ts": None,
             "ok": False,
             "http_status": None,
-            "url": url,
+            "url": urls,
             "interval_sec": int(interval_sec),
             "error": None,
             "running": True,
+            "last_success_url": None,
+            "consecutive_failures": 0,
         })
     except Exception:
         pass
+    consecutive_failures = 0
     while True:
-        ok, code, err = _ping_once(url)
-        ts = _utcnow_iso()
-        # Console log
-        if ok:
-            print(f"[keep_alive] {ts} -> OK {code}")
-        else:
-            print(f"[keep_alive] {ts} -> FAIL {code or ''} {err or ''}")
+        for url in urls:
+            ok, code, err = _ping_once(url)
+            ts = _utcnow_iso()
+            if ok:
+                consecutive_failures = 0
+                print(f"[keep_alive] {ts} -> OK {code} {url}")
+            else:
+                consecutive_failures += 1
+                print(f"[keep_alive] {ts} -> FAIL {code or ''} {err or ''} {url}")
 
-        # Persist a tiny status doc for admin
-        doc = {
-            "ts": ts,
-            "ok": bool(ok),
-            "http_status": code,
-            "url": url,
-            "interval_sec": int(interval_sec),
-            "error": err if not ok else None,
-            "running": True,
-        }
-        try:
-            _write_json_atomic(status_file, doc)
-        except Exception:
-            # never crash the thread
-            pass
-
-        time.sleep(max(30, int(interval_sec)))  # safety minimum
+            doc = {
+                "ts": ts,
+                "ok": bool(ok),
+                "http_status": code,
+                "url": url,
+                "interval_sec": int(interval_sec),
+                "error": err if not ok else None,
+                "running": True,
+                "last_success_url": url if ok else None,
+                "consecutive_failures": consecutive_failures,
+            }
+            try:
+                _write_json_atomic(status_file, doc)
+            except Exception:
+                pass
+            time.sleep(2)
+        jitter = max(30, int(interval_sec)) + int(os.urandom(1)[0] % 15)
+        time.sleep(jitter)
 
 
 def start_keep_alive(data_dir: str | Path, interval_sec: int = DEFAULT_INTERVAL_SEC) -> None:
