@@ -1,11 +1,93 @@
 {% extends "base.html" %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .admin-cta-row{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:10px;
+    }
+    .admin-cta-row .btn{
+      white-space:nowrap;
+    }
+    .admin-form{
+      display:grid;
+      gap:12px;
+    }
+    .admin-form--auto{
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    }
+    .admin-form--four{
+      grid-template-columns:repeat(4,minmax(160px,1fr));
+    }
+    .admin-inline-inputs{
+      display:flex;
+      gap:6px;
+    }
+    .admin-inline-inputs input{
+      flex:1;
+    }
+    .admin-table-scroll{
+      margin-top:12px;
+      overflow:auto;
+    }
+    .admin-table-scroll table{
+      min-width:620px;
+    }
+    .admin-health-header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .admin-health-actions{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    @media (max-width:1000px){
+      .admin-form--four{
+        grid-template-columns:repeat(2,minmax(160px,1fr));
+      }
+    }
+    @media (max-width:640px){
+      .admin-cta-row{
+        flex-direction:column;
+      }
+      .admin-cta-row .btn{
+        width:100%;
+        justify-content:center;
+      }
+      .admin-form,
+      .admin-form--auto,
+      .admin-form--four{
+        grid-template-columns:1fr;
+      }
+      .admin-inline-inputs{
+        flex-direction:column;
+      }
+      .admin-health-actions .btn{
+        flex:1 1 auto;
+      }
+    }
+    @media (max-width:540px){
+      .admin-health-actions{
+        width:100%;
+        justify-content:stretch;
+      }
+    }
+  </style>
+{% endblock %}
 {% block content %}
 
 <div class="card">
   <h2>لوحة الإدارة / Admin Dashboard</h2>
   <p class="small muted">إدارة المنافذ وطلبات السحب وسجل الدخول.</p>
 
-  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;">
+  <div class="admin-cta-row">
     <a class="btn secondary" href="{{ url_for('withdraw_admin.list_withdrawals') }}">
       💰 طلبات السحب
       {% if pending_withdrawals and pending_withdrawals > 0 %}
@@ -50,7 +132,7 @@
     <p class="small muted" style="margin:0 0 12px;">لا توجد ضربة منشورة حالياً.</p>
   {% endif %}
 
-  <form method="post" action="{{ url_for('admin_publish_news_hit') }}" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;">
+  <form method="post" action="{{ url_for('admin_publish_news_hit') }}" class="admin-form admin-form--auto">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div style="grid-column:1 / -1;">
       <label>التاريخ والوقت</label>
@@ -87,9 +169,9 @@
 
 <!-- Live Server Health with axes -->
 <div class="card">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+  <div class="admin-health-header">
     <h3 style="margin:0;">حالة الخادم (CPU / RAM / RSS)</h3>
-    <div style="display:flex;gap:8px;align-items:center;">
+    <div class="admin-health-actions">
       <span id="health-degraded" class="chip" style="display:none;padding:.25rem .6rem;border-radius:999px;background:#2a2320;color:#f4d6c5;border:1px solid #5b3e33;">وضع مبسّط</span>
       <button id="health-pause" class="btn tertiary small" type="button">⏸️ إيقاف مؤقت</button>
       <button id="health-resume" class="btn small" type="button" disabled>▶️ استئناف</button>
@@ -143,7 +225,7 @@
 <div class="card">
   <h3>توليد منافذ للمستخدم</h3>
   <form action="{{ url_for('admin.assign_ports') }}" method="post"
-        style="display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;">
+        class="admin-form admin-form--four">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div>
       <label>اسم المستخدم</label>
@@ -165,7 +247,7 @@
 
     <div>
       <label>المكافأة (أدنى – أعلى)</label>
-      <div style="display:flex;gap:6px;">
+      <div class="admin-inline-inputs">
         <input type="number" name="reward_min" step="0.01" value="1.10">
         <input type="number" name="reward_max" step="0.01" value="4.25">
       </div>
@@ -173,7 +255,7 @@
 
     <div>
       <label>تأخير الحل (ثوانٍ)</label>
-      <div style="display:flex;gap:6px;">
+      <div class="admin-inline-inputs">
         <input type="number" name="delay_min" step="1" value="0">
         <input type="number" name="delay_max" step="1" value="7">
       </div>
@@ -189,7 +271,7 @@
   <h3>جدولة توليد المنافذ</h3>
   <p class="small muted">اختر المستخدم والإعدادات وسيقوم النظام بتوليد المنافذ تلقائياً في الوقت المحدد.</p>
   <form action="{{ url_for('admin_schedule_ports') }}" method="post"
-        style="display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;">
+        class="admin-form admin-form--four">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div>
       <label>اسم المستخدم</label>
@@ -209,14 +291,14 @@
     </div>
     <div>
       <label>المكافأة (أدنى – أعلى)</label>
-      <div style="display:flex;gap:6px;">
+      <div class="admin-inline-inputs">
         <input type="number" name="reward_min" step="0.01" value="1.10">
         <input type="number" name="reward_max" step="0.01" value="4.25">
       </div>
     </div>
     <div>
       <label>تأخير الحل (ثوانٍ)</label>
-      <div style="display:flex;gap:6px;">
+      <div class="admin-inline-inputs">
         <input type="number" name="delay_min" step="1" value="0">
         <input type="number" name="delay_max" step="1" value="7">
       </div>
@@ -230,7 +312,7 @@
     </div>
   </form>
 
-  <div style="margin-top:12px;">
+  <div class="admin-table-scroll">
     {% if scheduled_jobs and scheduled_jobs|length > 0 %}
       <table class="table" style="width:100%;border-collapse:collapse;">
         <thead>
