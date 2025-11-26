@@ -342,15 +342,31 @@
 {% endblock %}
 
 {% block content %}
+{% set clean_counts = namespace(discovered=0, resolved=0, archived=0) %}
+{% for p in discovered %}
+  {% if not (p.id and p.id[:7] == 'ledger-') %}
+    {% set clean_counts.discovered = clean_counts.discovered + 1 %}
+  {% endif %}
+{% endfor %}
+{% for p in resolved %}
+  {% if not (p.id and p.id[:7] == 'ledger-') %}
+    {% set clean_counts.resolved = clean_counts.resolved + 1 %}
+  {% endif %}
+{% endfor %}
+{% for p in archived %}
+  {% if not (p.id and p.id[:7] == 'ledger-') %}
+    {% set clean_counts.archived = clean_counts.archived + 1 %}
+  {% endif %}
+{% endfor %}
 <div class="dashboard-page rtl">
   <section class="card dashboard-hero">
     <div class="hero-text">
       <h2>لوحة التحكم</h2>
-      <p>تابع منافذك المكتشفة ({{ discovered_count }}) والمحلولة ({{ resolved_count }})، ثم اطلب السحب فور جهوز الرصيد.</p>
+      <p>تابع منافذك المكتشفة ({{ clean_counts.discovered }}) والمحلولة ({{ clean_counts.resolved }})، ثم اطلب السحب فور جهوز الرصيد.</p>
       <div class="stat-row">
         <span class="stat-chip stat-chip--assigned">📦 المسندة: <strong>{{ undiscovered_count }}</strong></span>
-        <span class="stat-chip stat-chip--discovered">🟡 المكتشفة: <strong>{{ discovered_count }}</strong></span>
-        <span class="stat-chip stat-chip--resolved">✅ المحلولة: <strong>{{ resolved_count }}</strong></span>
+        <span class="stat-chip stat-chip--discovered">🟡 المكتشفة: <strong>{{ clean_counts.discovered }}</strong></span>
+        <span class="stat-chip stat-chip--resolved">✅ المحلولة: <strong>{{ clean_counts.resolved }}</strong></span>
       </div>
     </div>
     <div class="wallet-panel">
