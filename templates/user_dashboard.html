@@ -243,6 +243,14 @@
           تلميح: يمكنك السحب فور وصول الرصيد.
         </p>
 
+        <form method="post" action="{{ url_for('user_clear_resolved') }}" style="margin-top:12px;">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn danger small" type="submit"
+                  onclick="return confirm('سيتم حذف جميع المنافذ المحلولة من القائمة مع الاحتفاظ بالأرباح. المتابعة؟');">
+            🧽 حذف المنافذ المحلولة
+          </button>
+        </form>
+
         <div id="news-search-module" class="news-module">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
             <div>

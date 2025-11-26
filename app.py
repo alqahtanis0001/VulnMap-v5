@@ -563,6 +563,43 @@ def _purge_generated_ports_for(username: str) -> int:
     return deleted
 
 
+def _clear_user_resolved_ports(username: str) -> int:
+    """
+    Remove resolved ports for a single user while preserving their earnings via a ledger.
+    """
+    gen_dir = DATA_DIR / "ports" / "generated_ports"
+    gen_dir.mkdir(parents=True, exist_ok=True)
+    u = (username or "").strip().lower()
+
+    removed = 0
+    total_reward = 0.0
+    for fp in gen_dir.glob("*.json"):
+        try:
+            d = _read_json(fp, {})
+        except Exception:
+            continue
+        if (d.get("owner", "").strip().lower() != u):
+            continue
+        if d.get("status") != "resolved":
+            continue
+        if str(d.get("id", "")).startswith("ledger-"):
+            continue
+        try:
+            total_reward += float(d.get("reward") or 0.0)
+        except Exception:
+            pass
+        try:
+            fp.unlink(missing_ok=True)
+            removed += 1
+        except Exception:
+            continue
+
+    if removed > 0 and total_reward > 0:
+        _write_ledger_port(u, total_reward)
+
+    return removed
+
+
 def _write_ledger_port(username: str, reward: float) -> None:
     """
     Create one synthetic resolved 'ledger-*' port so that:
@@ -1075,6 +1112,16 @@ def user_unarchive():
 
     result = unarchive_port(current_user.username, pid)
     flash("تمت الاستعادة." if result.get("ok") else "تعذّر الاستعادة.", "ok" if result.get("ok") else "err")
+    return redirect(url_for("user_dashboard"))
+
+@app.route("/clear-resolved", methods=["POST"])
+@login_required
+def user_clear_resolved():
+    removed = _clear_user_resolved_ports(current_user.username)
+    if removed > 0:
+        flash(f"تم حذف {removed} منفذاً محلولاً مع حفظ أرباحك.", "ok")
+    else:
+        flash("لا توجد منافذ محلولة لحذفها.", "info")
     return redirect(url_for("user_dashboard"))
 
 
