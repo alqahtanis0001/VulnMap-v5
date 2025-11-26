@@ -37,6 +37,7 @@ from port_logic import (
     scan_user_assigned,
     resolve_port,
     archive_port,
+    unarchive_port,
     admin_stats_view,
 )
 
@@ -907,6 +908,18 @@ def user_archive():
     flash("تمت الأرشفة." if result.get("ok") else "تعذّر الأرشفة.", "ok" if result.get("ok") else "err")
     return redirect(url_for("user_dashboard"))
 
+@app.route("/unarchive", methods=["POST"])
+@login_required
+def user_unarchive():
+    pid = (request.form.get("port_id") or "").strip()
+    if not pid:
+        flash("معرّف منفذ غير صالح.", "err")
+        return redirect(url_for("user_dashboard"))
+
+    result = unarchive_port(current_user.username, pid)
+    flash("تمت الاستعادة." if result.get("ok") else "تعذّر الاستعادة.", "ok" if result.get("ok") else "err")
+    return redirect(url_for("user_dashboard"))
+
 
 # ------------------------------ Withdraw (HTML) ------------------------------
 @app.route("/withdraw", methods=["POST"])
@@ -1126,6 +1139,33 @@ def user_archive_json():
         "counts": {"discovered": len(vm["discovered"]), "resolved": len(vm["resolved"])},
         "wallet": vm["wallet"]
     }), (200 if result.get("ok") else 400)
+
+@app.route("/unarchive.json", methods=["POST"])
+@login_required
+def user_unarchive_json():
+    data = request.get_json(silent=True) or {}
+    pid = (data.get("port_id") or "").strip()
+    if not pid:
+        return jsonify({"ok": False, "error": "bad_request"}), 400
+
+    result = unarchive_port(current_user.username, pid)
+    status_code = 200 if result.get("ok") else 400
+    vm = user_dashboard_view(current_user.username)
+
+    discovered = [_port_row(p) for p in vm["discovered"]]
+    resolved   = [_port_row(p) for p in vm["resolved"]]
+    archived   = [_port_row(p) for p in vm["archived"]]
+
+    return jsonify({
+        "ok": bool(result.get("ok")),
+        "error": result.get("error"),
+        "port_id": pid,
+        "discovered": discovered,
+        "resolved": resolved,
+        "archived": archived,
+        "counts": {"discovered": len(discovered), "resolved": len(resolved)},
+        "wallet": vm["wallet"]
+    }), status_code
 
 
 # ------------------------------ Admin auxiliary pages ------------------------------

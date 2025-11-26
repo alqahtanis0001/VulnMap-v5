@@ -9,6 +9,7 @@
         scanJson: '/scan.json',
         resolveJson: '/resolve.json',
         archiveJson: '/archive.json',
+        unarchiveJson: '/unarchive.json',
         withdrawJson: '/withdraw.json',
         newsStart: '/news-search/start',
         newsStatus: '/news-search/status',
@@ -19,6 +20,7 @@
       scanJson: el.dataset.scanJson || '/scan.json',
       resolveJson: el.dataset.resolveJson || '/resolve.json',
       archiveJson: el.dataset.archiveJson || '/archive.json',
+      unarchiveJson: el.dataset.unarchiveJson || '/unarchive.json',
       withdrawJson: el.dataset.withdrawJson || '/withdraw.json',
       newsStart: el.dataset.newsStart || '/news-search/start',
       newsStatus: el.dataset.newsStatus || '/news-search/status',
@@ -85,7 +87,7 @@
       `<td class="td-reward">${formatReward(p.reward||0)}</td>`;
 
     if (kind === 'discovered') {
-      return `<tr data-row-id="${p.id}">
+      return `<tr data-row-id="${p.id}" data-status="discovered">
         ${common}
         <td class="td-status">🟡 مكتشف</td>
         <td>
@@ -114,7 +116,7 @@
     }
 
     if (kind === 'resolved') {
-      return `<tr data-row-id="${p.id}">
+      return `<tr data-row-id="${p.id}" data-status="resolved">
         ${common}
         <td class="td-status">✅ تم الحل</td>
         <td><span class="small muted">—</span></td>
@@ -122,10 +124,15 @@
     }
 
     // archived
-    return `<tr data-row-id="${p.id}">
+    return `<tr data-row-id="${p.id}" data-status="archived">
       ${common}
       <td class="td-status">📦 مؤرشف</td>
-      <td><span class="small muted">—</span></td>
+      <td>
+        <form class="unarchive-form" style="display:inline-flex;gap:6px;align-items:center;">
+          <input type="hidden" name="port_id" value="${p.id}">
+          <button class="btn tertiary small" type="button">استعادة</button>
+        </form>
+      </td>
     </tr>`;
   }
 

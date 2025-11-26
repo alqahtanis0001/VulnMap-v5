@@ -199,7 +199,16 @@
                         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f7a77a;"></span> مؤرشف
                       </span>
                     </td>
-                    <td><span class="small muted">—</span></td>
+                    <td>
+                      <form class="unarchive-form" method="post" action="{{ url_for('user_unarchive') }}" style="display:inline-flex;gap:6px;align-items:center;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="port_id" value="{{ p.id }}">
+                        <button class="btn tertiary small" type="button">استعادة</button>
+                        <noscript>
+                          <button class="btn tertiary small" type="submit">استعادة (بدون JS)</button>
+                        </noscript>
+                      </form>
+                    </td>
                   </tr>
                 {% endif %}
               {% endfor %}
@@ -309,6 +318,7 @@
      data-resolve-json="{{ url_for('user_resolve_json') }}"
      data-withdraw-json="{{ url_for('user_withdraw_json') }}"
      data-archive-json="{{ url_for('user_archive_json') }}"
+     data-unarchive-json="{{ url_for('user_unarchive_json') }}"
      data-news-start="{{ url_for('news_search_start') }}"
      data-news-status="{{ url_for('news_search_status') }}"
      data-news-bootstrap='{{ {"job": news_job, "hit": news_hit}|tojson }}'></div>

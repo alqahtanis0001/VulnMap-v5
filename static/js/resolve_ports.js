@@ -5,7 +5,7 @@
     return;
   }
 
-  const EP = VM.endpoints;   // { resolveJson, archiveJson }
+  const EP = VM.endpoints;   // { resolveJson, archiveJson, unarchiveJson }
   const H  = VM.helpers;     // { idempotencyKey, ... }
 
   function csrfToken(){
@@ -87,6 +87,19 @@
     }).then(r => r.json());
   }
 
+  function apiUnarchive(portId) {
+    return fetch(EP.unarchiveJson, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'fetch',
+        'X-CSRFToken': csrfToken()
+      },
+      credentials: 'same-origin',
+      body: JSON.stringify({ port_id: portId })
+    }).then(r => r.json());
+  }
+
   function apiRemaining(portId) {
     // Use fixed endpoint; this primes per-click timer on the server
     return fetch(`/api/port/${encodeURIComponent(portId)}/remaining`, {
@@ -120,6 +133,13 @@
     if (mini) mini.hidden = true;
     if (status) status.textContent = '📦 مؤرشف';
     if (actions) actions.innerHTML = '<span class="small muted">—</span>';
+  }
+
+  function refreshFromPayload(payload) {
+    if (!payload) return;
+    if (payload.discovered && payload.resolved && payload.archived && VM.render && typeof VM.render.renderAll === 'function') {
+      VM.render.renderAll(payload.discovered, payload.resolved, payload.archived);
+    }
     VM.updateCountsWallet(payload);
   }
 
@@ -281,6 +301,23 @@
     apiArchive(pid).then(data => {
       if (data && data.ok) {
         finalizeArchive(row, data);
+        refreshFromPayload(data);
+      } else {
+        // optional toast
+      }
+    }).catch(() => {/* noop */});
+  }
+
+  function handleUnarchive(btn) {
+    const form = btn.closest('.unarchive-form');
+    const row  = btn.closest('tr');
+    if (!form) return;
+    const pid = form.querySelector('input[name="port_id"]')?.value;
+    if (!pid) return;
+
+    apiUnarchive(pid).then(data => {
+      if (data && data.ok) {
+        refreshFromPayload(data);
       } else {
         // optional toast
       }
@@ -301,6 +338,12 @@
     if (archiveBtn) {
       e.preventDefault();
       handleArchive(archiveBtn);
+      return;
+    }
+    const unarchiveBtn = e.target.closest('.unarchive-form button');
+    if (unarchiveBtn) {
+      e.preventDefault();
+      handleUnarchive(unarchiveBtn);
       return;
     }
   }, { passive: false });

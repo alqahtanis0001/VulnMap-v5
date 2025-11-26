@@ -54,26 +54,10 @@ def persist_rayan_wallet(data_dir: Path, wallet: Dict[str, float]) -> Dict[str, 
 
 def load_rayan_wallet(data_dir: Path, computed_wallet: Dict[str, float]) -> Dict[str, float]:
     """
-    Return the persisted wallet if present/valid, otherwise seed the file with
-    the computed values. Always writes the chosen wallet back to disk so it
-    survives restarts.
+    Persist the latest computed wallet so that new earnings/withdrawals are
+    reflected immediately while still keeping a durable snapshot on disk.
     """
     computed = _sanitize_wallet(computed_wallet)
-    fp = get_rayan_wallet_file(data_dir)
-    file_wallet = _read_json(fp, None)
-
-    if isinstance(file_wallet, dict):
-        try:
-            return persist_rayan_wallet(
-                data_dir,
-                {
-                    "available_balance": file_wallet.get("available_balance", computed["available_balance"]),
-                    "total_earned": file_wallet.get("total_earned", computed["total_earned"]),
-                },
-            )
-        except Exception:
-            pass
-
     return persist_rayan_wallet(data_dir, computed)
 
 

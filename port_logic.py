@@ -396,6 +396,31 @@ def archive_port(username: str, pid: str) -> Dict:
     finally:
         release_lock(pid)
 
+def unarchive_port(username: str, pid: str) -> Dict:
+    port = load_port(pid)
+    if not port:
+        return {"ok": False, "error": "not_found"}
+    if port.owner.lower() != (username or "").lower():
+        return {"ok": False, "error": "forbidden"}
+
+    if not acquire_lock(pid):
+        return {"ok": False, "error": "busy"}
+
+    try:
+        fresh = load_port(pid)
+        if not fresh:
+            return {"ok": False, "error": "not_found"}
+        if fresh.status != "archived":
+            return {"ok": False, "error": "invalid_state", "state": fresh.status}
+
+        fresh.status = "discovered"
+        fresh.discovered_at = fresh.discovered_at or _utcnow_iso()
+        fresh.resolve_started_at = None
+        save_port(fresh)
+        return {"ok": True, "port": fresh.to_dict()}
+    finally:
+        release_lock(pid)
+
 # ---------- Read models ----------
 def user_dashboard_view(username: str) -> Dict:
     ports = list_ports_for_user(username)
