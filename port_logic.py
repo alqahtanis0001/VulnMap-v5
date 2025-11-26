@@ -105,7 +105,7 @@ def _persist_wallet_snapshot(username: str, wallet: Dict[str, float]) -> Dict[st
     existing = snapshots.get(uname)
     if existing != sanitized:
         snapshots[uname] = sanitized
-        _write_json_atomic(WALLET_SNAPSHOT_FILE, snapshots)
+    _write_json_atomic(WALLET_SNAPSHOT_FILE, snapshots)
     return sanitized
 
 def get_wallet_snapshot(username: str) -> Optional[Dict[str, float]]:
@@ -485,6 +485,13 @@ def user_dashboard_view(username: str) -> Dict:
 
     if is_rayan(username):
         wallet = load_rayan_wallet(DATA_DIR, wallet)
+
+    snapshot = get_wallet_snapshot(username)
+    if snapshot:
+        wallet = {
+            "available_balance": max(wallet["available_balance"], snapshot["available_balance"]),
+            "total_earned": max(wallet["total_earned"], snapshot["total_earned"]),
+        }
 
     wallet = _persist_wallet_snapshot(username, wallet)
 
