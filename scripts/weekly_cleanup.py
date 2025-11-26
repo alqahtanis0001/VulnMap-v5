@@ -6,12 +6,13 @@ import json, os, uuid
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Dict, Any, List
+from withdrawals_path import get_withdrawals_file
 
 # ---------- Paths ----------
 ROOT = Path(__file__).resolve().parents[1]        # project root (contains app.py, data/, templates/, etc.)
 DATA_DIR = ROOT / "data"
 USERS_FILE = DATA_DIR / "users.json"
-WITHDRAWALS_FILE = DATA_DIR / "withdrawals.json"
+WITHDRAWALS_FILE = get_withdrawals_file(DATA_DIR)
 GEN_DIR = DATA_DIR / "ports" / "generated_ports"
 
 LEDGER_DIR = DATA_DIR / "ledger"

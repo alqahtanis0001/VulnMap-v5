@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
+from withdrawals_path import get_withdrawals_file
 
 # ---------- Paths ----------
 ROOT = Path(__file__).resolve().parent
@@ -23,7 +24,7 @@ DATA_DIR = ROOT / "data"
 PORTS_DIR = DATA_DIR / "ports" / "generated_ports"
 LOCKS_DIR = DATA_DIR / "ports" / "locks"
 PROCESSED_FILE = DATA_DIR / "ports" / "processed_requests.json"
-WITHDRAWALS_FILE = DATA_DIR / "withdrawals.json"
+WITHDRAWALS_FILE = get_withdrawals_file(DATA_DIR)
 USERS_FILE = DATA_DIR / "users.json"
 
 # ---------- Utilities ----------

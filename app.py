@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 from scripts.keep_alive import start_keep_alive, read_keepalive_status
+from withdrawals_path import get_withdrawals_file
 
 from flask import (
     Flask, render_template, request, redirect, url_for, flash, abort, jsonify
@@ -50,7 +51,7 @@ LOGIN_LOG_DIR = DATA_DIR / "login_activity"
 
 USERS_FILE = DATA_DIR / "users.json"
 APPROVED_IDS_FILE = DATA_DIR / "approved_ids.json"
-WITHDRAWALS_FILE = DATA_DIR / "withdrawals.json"
+WITHDRAWALS_FILE = get_withdrawals_file(DATA_DIR)
 PROCESSED_FILE = DATA_DIR / "ports" / "processed_requests.json"  # created by port_logic if missing
 
 
@@ -709,21 +710,6 @@ def user_withdraw_request():
 
     flash("تم إرسال طلب السحب.", "ok")
     return redirect(url_for("user_dashboard"))
-
-
-# ---- withdrawals file resolver (handles old typo "withdrawls.json") ----
-def _get_withdrawals_file() -> Path:
-    """
-    Prefer data/withdrawals.json; if only 'withdrawls.json' exists, use it.
-    If neither exists, create the correct one on first write.
-    """
-    correct = DATA_DIR / "withdrawals.json"
-    typo    = DATA_DIR / "withdrawls.json"
-    if correct.exists():
-        return correct
-    if typo.exists() and not correct.exists():
-        return typo
-    return correct
 
 
 # ------------------------------ JSON endpoints (AJAX; NO RELOAD) ------------------------------

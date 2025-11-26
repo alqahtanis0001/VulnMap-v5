@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
+from withdrawals_path import get_withdrawals_file
 
 # Project roots relative to this file
 ROOT = Path(__file__).resolve().parents[1]  # go up from admin/ -> project root
@@ -43,20 +44,8 @@ def _write_json_atomic(path: Path, data) -> None:
         write_tmp()
     os.replace(tmp, path)
 
-def _get_withdrawals_file() -> Path:
-    """
-    Supports both 'withdrawals.json' (correct) and legacy 'withdrawls.json' (typo).
-    """
-    correct = DATA_DIR / "withdrawals.json"
-    typo    = DATA_DIR / "withdrawls.json"
-    if correct.exists():
-        return correct
-    if typo.exists() and not correct.exists():
-        return typo
-    return correct
-
 def read_withdrawals() -> List[Dict]:
-    wf = _get_withdrawals_file()
+    wf = get_withdrawals_file(DATA_DIR)
     try:
         items = json.loads(wf.read_text(encoding="utf-8"))
         if not isinstance(items, list):
@@ -66,7 +55,7 @@ def read_withdrawals() -> List[Dict]:
         return []
 
 def write_withdrawals(items: List[Dict]) -> None:
-    wf = _get_withdrawals_file()
+    wf = get_withdrawals_file(DATA_DIR)
     _write_json_atomic(wf, items)
 
 def next_withdrawal_id(items: List[Dict]) -> int:
