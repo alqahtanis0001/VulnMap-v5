@@ -79,6 +79,52 @@
         justify-content:stretch;
       }
     }
+    @media (max-width:720px){
+      .admin-table-scroll table{
+        min-width:0;
+      }
+      .admin-table-responsive table,
+      .admin-table-responsive thead,
+      .admin-table-responsive tbody,
+      .admin-table-responsive th,
+      .admin-table-responsive td,
+      .admin-table-responsive tr{
+        display:block;
+        width:100%;
+      }
+      .admin-table-responsive thead{
+        display:none;
+      }
+      .admin-table-responsive tbody tr{
+        margin-bottom:12px;
+        padding:10px 12px;
+        border-radius:12px;
+        background:#111622;
+        box-shadow:0 2px 6px rgba(0,0,0,.35);
+      }
+      .admin-table-responsive tbody tr td{
+        display:flex;
+        justify-content:space-between;
+        padding:6px 0;
+        border-top:1px solid rgba(255,255,255,.05);
+      }
+      .admin-table-responsive tbody tr td:first-child{
+        border-top:none;
+      }
+      .admin-table-responsive tbody tr td::before{
+        content:attr(data-label);
+        font-weight:700;
+        color:var(--muted);
+        margin-inline-end:12px;
+      }
+      .admin-table-responsive tbody tr td form{
+        width:100%;
+      }
+      .admin-table-responsive tbody tr td form .btn{
+        width:100%;
+        justify-content:center;
+      }
+    }
   </style>
 {% endblock %}
 {% block content %}
@@ -312,7 +358,7 @@
     </div>
   </form>
 
-  <div class="admin-table-scroll">
+  <div class="admin-table-scroll admin-table-responsive">
     {% if scheduled_jobs and scheduled_jobs|length > 0 %}
       <table class="table" style="width:100%;border-collapse:collapse;">
         <thead>
@@ -329,19 +375,19 @@
         <tbody>
           {% for job in scheduled_jobs %}
             <tr>
-              <td>{{ job.username }}</td>
-              <td>{{ job.count }}</td>
-              <td>{{ job.reward_min }} – {{ job.reward_max }}</td>
-              <td>{{ job.delay_min }} – {{ job.delay_max }} ث</td>
-              <td>{{ job.run_at_display }}</td>
-              <td>
+              <td data-label="المستخدم">{{ job.username }}</td>
+              <td data-label="العدد">{{ job.count }}</td>
+              <td data-label="المكافأة">{{ job.reward_min }} – {{ job.reward_max }}</td>
+              <td data-label="التأخير">{{ job.delay_min }} – {{ job.delay_max }} ث</td>
+              <td data-label="وقت التشغيل">{{ job.run_at_display }}</td>
+              <td data-label="الوقت المتبقي">
                 {% if job.remaining_minutes is not none %}
                   {{ job.remaining_minutes }} دقيقة
                 {% else %}
                   —
                 {% endif %}
               </td>
-              <td>
+              <td data-label="إجراء">
                 <form method="post" action="{{ url_for('admin_cancel_schedule', job_id=job.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button class="btn tertiary small" type="submit">إلغاء</button>

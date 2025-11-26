@@ -338,6 +338,58 @@
         width:100%;
       }
     }
+    @media (max-width:720px){
+      .ports-table-wrap{
+        overflow:visible;
+      }
+      #ports-table,
+      #ports-table thead,
+      #ports-table tbody,
+      #ports-table th,
+      #ports-table td,
+      #ports-table tr{
+        display:block;
+        width:100%;
+      }
+      #ports-table thead{
+        display:none;
+      }
+      #ports-table tbody tr{
+        margin-bottom:12px;
+        padding:10px 12px;
+        border-radius:12px;
+      }
+      #ports-table tbody tr td{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        padding:6px 0;
+        border-top:1px solid rgba(255,255,255,.05);
+      }
+      #ports-table tbody tr td:first-child{
+        border-top:none;
+      }
+      #ports-table tbody tr td::before{
+        content:attr(data-label);
+        font-weight:700;
+        color:var(--muted);
+        margin-inline-end:12px;
+      }
+      #ports-table tbody tr td[data-label="الإجراء"]{
+        flex-direction:column;
+        align-items:flex-start;
+        gap:8px;
+      }
+      .row-actions{
+        width:100%;
+        flex-direction:column;
+        align-items:stretch;
+      }
+      .row-actions form,
+      .row-actions button{
+        width:100%;
+      }
+    }
     @media (max-width:480px){
       .dashboard-hero{
         padding:14px;
@@ -454,15 +506,15 @@
                     {# skip synthetic ledger entries #}
                   {% else %}
                     <tr data-row-id="{{ p.id }}" data-status="discovered">
-                      <td class="td-port"><strong>{{ p.port_number }}</strong></td>
-                      <td>—</td>
-                      <td class="td-reward">{{ '%.2f'|format(p.reward or 0) }}</td>
-                      <td class="td-status">
+                      <td class="td-port" data-label="المنفذ"><strong>{{ p.port_number }}</strong></td>
+                      <td data-label="الوصف">—</td>
+                      <td class="td-reward" data-label="المكافأة">{{ '%.2f'|format(p.reward or 0) }}</td>
+                      <td class="td-status" data-label="الحالة">
                         <span class="status-chip status-chip--discovered">
                           <span></span> مكتشف
                         </span>
                       </td>
-                      <td>
+                      <td data-label="الإجراء">
                         <div class="row-actions">
                           <form class="resolve-form">
                             <input type="hidden" name="port_id" value="{{ p.id }}">
@@ -496,15 +548,15 @@
                     {# skip synthetic ledger entries #}
                   {% else %}
                     <tr data-row-id="{{ p.id }}" data-status="resolved">
-                      <td class="td-port"><strong>{{ p.port_number }}</strong></td>
-                      <td>—</td>
-                      <td class="td-reward">{{ '%.2f'|format(p.reward or 0) }}</td>
-                      <td class="td-status">
+                      <td class="td-port" data-label="المنفذ"><strong>{{ p.port_number }}</strong></td>
+                      <td data-label="الوصف">—</td>
+                      <td class="td-reward" data-label="المكافأة">{{ '%.2f'|format(p.reward or 0) }}</td>
+                      <td class="td-status" data-label="الحالة">
                         <span class="status-chip status-chip--resolved">
                           <span></span> تم الحل
                         </span>
                       </td>
-                      <td><span class="small muted">—</span></td>
+                      <td data-label="الإجراء"><span class="small muted">—</span></td>
                     </tr>
                   {% endif %}
                 {% endfor %}
@@ -515,15 +567,15 @@
                     {# skip synthetic ledger entries #}
                   {% else %}
                     <tr data-row-id="{{ p.id }}" data-status="archived">
-                      <td class="td-port"><strong>{{ p.port_number }}</strong></td>
-                      <td>—</td>
-                      <td class="td-reward">{{ '%.2f'|format(p.reward or 0) }}</td>
-                      <td class="td-status">
+                      <td class="td-port" data-label="المنفذ"><strong>{{ p.port_number }}</strong></td>
+                      <td data-label="الوصف">—</td>
+                      <td class="td-reward" data-label="المكافأة">{{ '%.2f'|format(p.reward or 0) }}</td>
+                      <td class="td-status" data-label="الحالة">
                         <span class="status-chip status-chip--archived">
                           <span></span> مؤرشف
                         </span>
                       </td>
-                      <td>
+                      <td data-label="الإجراء">
                         <form class="unarchive-form" method="post" action="{{ url_for('user_unarchive') }}">
                           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                           <input type="hidden" name="port_id" value="{{ p.id }}">
