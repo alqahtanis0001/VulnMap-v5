@@ -12,6 +12,7 @@
         unarchiveJson: '/unarchive.json',
         withdrawJson: '/withdraw.json',
         walletJson: '/wallet.json',
+        metricsJson: '/metrics.json',
         newsStart: '/news-search/start',
         newsStatus: '/news-search/status',
         newsBootstrap: '{}'
@@ -24,6 +25,7 @@
       unarchiveJson: el.dataset.unarchiveJson || '/unarchive.json',
       withdrawJson: el.dataset.withdrawJson || '/withdraw.json',
       walletJson: el.dataset.walletJson || '/wallet.json',
+      metricsJson: el.dataset.metricsJson || '/metrics.json',
       newsStart: el.dataset.newsStart || '/news-search/start',
       newsStatus: el.dataset.newsStatus || '/news-search/status',
       newsBootstrap: el.dataset.newsBootstrap || '{}'
@@ -207,6 +209,87 @@
   }
   fetchWalletSnapshot();
   setInterval(fetchWalletSnapshot, 30000);
+
+  (function initHealthCard(){
+    if (!window.VM || !VM.endpoints || !VM.endpoints.metricsJson) return;
+    const canvas = document.getElementById('user-health-canvas');
+    if (!canvas) return;
+    const cpuSpan = document.querySelector('[data-health-cpu]');
+    const ramSpan = document.querySelector('[data-health-ram]');
+    const updatedSpan = document.querySelector('[data-health-updated]');
+    const statusChip = document.querySelector('[data-health-status]');
+    const ctx = canvas.getContext('2d');
+    const history = { cpu: [], ram: [], max: 60 };
+
+    let dpr = window.devicePixelRatio || 1;
+
+    function resize(){
+      const rect = canvas.getBoundingClientRect();
+      dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.scale(dpr, dpr);
+      drawChart();
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    function drawChart(){
+      const width = canvas.width / dpr;
+      const height = canvas.height / dpr;
+      ctx.clearRect(0,0,width,height);
+      ctx.fillStyle = '#0f141e';
+      ctx.fillRect(0,0,width,height);
+      const points = history.cpu.length;
+      if (!points) return;
+      const step = width / Math.max(points - 1, 1);
+
+      const drawLine = (data, color) => {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        data.forEach((val, idx) => {
+          const x = idx * step;
+          const y = height - (val/100) * height;
+          if (idx === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      };
+      drawLine(history.cpu, '#5e81ff');
+      drawLine(history.ram, '#6fffc3');
+    }
+
+    function record(val, list){
+      list.push(Math.max(0, Math.min(100, val)));
+      while (list.length > history.max) list.shift();
+    }
+
+    function updateCard(payload){
+      const cpu = Number(payload.cpu_percent || 0);
+      const ram = Number(payload.ram_percent || 0);
+      record(cpu, history.cpu);
+      record(ram, history.ram);
+      if (cpuSpan) cpuSpan.textContent = cpu.toFixed(1) + '%';
+      if (ramSpan) ramSpan.textContent = ram.toFixed(1) + '%';
+      if (updatedSpan) updatedSpan.textContent = payload.ts || '—';
+      if (statusChip) {
+        statusChip.style.display = payload.degraded ? '' : 'none';
+        statusChip.textContent = payload.degraded ? 'وضع مبسّط' : '';
+      }
+      drawChart();
+    }
+
+    function fetchMetrics(){
+      fetch(VM.endpoints.metricsJson, { credentials: 'same-origin' })
+        .then(r => r.json())
+        .then(data => { if (data && data.ok) updateCard(data); })
+        .catch(()=>{});
+    }
+    fetchMetrics();
+    setInterval(fetchMetrics, 5000);
+  })();
 
   // --- Withdraw (no reload) ---
 (function attachWithdrawHandler(){

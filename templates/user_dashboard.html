@@ -296,6 +296,25 @@
         </p>
       </div>
 
+      <div class="card" id="health-card">
+        <h3 style="margin-top:0;">حالة الخادم (CPU / RAM)</h3>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:120px;">
+            <div class="small muted">المعالج</div>
+            <div style="font-size:1.4em;font-weight:700;"><span data-health-cpu>--%</span></div>
+          </div>
+          <div style="flex:1;min-width:120px;">
+            <div class="small muted">الذاكرة</div>
+            <div style="font-size:1.4em;font-weight:700;"><span data-health-ram>--%</span></div>
+          </div>
+        </div>
+        <canvas id="user-health-canvas" height="140" style="width:100%;margin-top:10px;border-radius:10px;background:#0f141e;border:1px solid rgba(255,255,255,.05);"></canvas>
+        <div class="small muted" style="margin-top:6px;">
+          آخر تحديث: <span data-health-updated>—</span>
+          <span data-health-status class="chip" style="margin-inline-start:8px;display:none;">وضع مبسط</span>
+        </div>
+      </div>
+
     </div>
 
   </div>
@@ -319,6 +338,7 @@
      data-withdraw-json="{{ url_for('user_withdraw_json') }}"
      data-archive-json="{{ url_for('user_archive_json') }}"
      data-unarchive-json="{{ url_for('user_unarchive_json') }}"
+     data-metrics-json="{{ url_for('user_metrics_json') }}"
      data-wallet-json="{{ url_for('wallet_snapshot_json') }}"
      data-news-start="{{ url_for('news_search_start') }}"
      data-news-status="{{ url_for('news_search_status') }}"

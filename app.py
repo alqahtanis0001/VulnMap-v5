@@ -1348,6 +1348,12 @@ def admin_metrics_json():
     return jsonify(_collect_metrics())
 
 
+@app.get("/metrics.json")
+@login_required
+def user_metrics_json():
+    return jsonify(_collect_metrics())
+
+
 # ------------------------------ Run ------------------------------
 if __name__ == "__main__":
     # In production, set host/port via env vars and disable debug.
