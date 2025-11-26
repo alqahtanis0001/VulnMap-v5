@@ -798,8 +798,8 @@ def create_app() -> Flask:
 
 app = create_app()
 
-# 540 sec = 12 minutes. Change the default as you like.
-interval = int(os.getenv("KEEP_ALIVE_INTERVAL_SEC", "720"))
+# Default keep-alive ping interval: 360 sec (6 minutes). Override via env.
+interval = int(os.getenv("KEEP_ALIVE_INTERVAL_SEC", str(6 * 60)))
 start_keep_alive(DATA_DIR, interval_sec=interval)
 
 

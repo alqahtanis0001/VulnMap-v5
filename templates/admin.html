@@ -228,24 +228,47 @@
 
 <!-- Keep-Alive status pill -->
 {% set ka = keepalive_status or {} %}
+{% set thread_active = ka.running %}
 <div class="card" style="margin-top:12px;">
   <h3>Keep-Alive</h3>
-  {% if ka.ok %}
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span style="display:inline-flex;align-items:center;gap:6px;padding:.35rem .6rem;border:1px solid #254a35;border-radius:999px;background:#1a2a20;color:#c9f2d4;">
-        <span style="width:8px;height:8px;border-radius:50%;background:#33d17a;"></span>
-        نشط — آخر نبضة: <strong style="margin-inline-start:6px;">{{ ka.ts or '—' }}</strong>
-      </span>
-    </div>
-    <p class="small muted" style="margin:.5rem 0 0;">يرسل طلباً إلى <code>{{ ka.url }}</code> كل 9 دقائق.</p>
-  {% else %}
-    <div style="display:flex;align-items:center;gap:8px;">
+  {% set freq_min = (ka.interval_sec or 360) // 60 %}
+  {% set has_pulse = ka.ts is not none %}
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    {% if not thread_active %}
       <span style="display:inline-flex;align-items:center;gap:6px;padding:.35rem .6rem;border:1px solid #5b3e33;border-radius:999px;background:#2a2320;color:#f4d6c5;">
         <span style="width:8px;height:8px;border-radius:50%;background:#f7a77a;"></span>
-        غير نشط — لم تُسجَّل أي نبضات بعد
+        غير نشط — لم يبدأ مؤشر keep-alive بعد
       </span>
+    {% elif ka.ok %}
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:.35rem .6rem;border:1px solid #254a35;border-radius:999px;background:#1a2a20;color:#c9f2d4;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#33d17a;"></span>
+        نشط • آخر نبضة ناجحة
+      </span>
+    {% elif has_pulse %}
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:.35rem .6rem;border:1px solid #5b3e33;border-radius:999px;background:#2a2320;color:#f4d6c5;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#f7a77a;"></span>
+        يعمل لكن آخر نبضة فشلت
+      </span>
+    {% else %}
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:.35rem .6rem;border:1px solid #5b3e33;border-radius:999px;background:#2a2320;color:#f4d6c5;">
+        <span style="width:8px;height:8px;border-radius:50%;background:#f7a77a;"></span>
+        لا توجد نبضات مُسجّلة بعد
+      </span>
+    {% endif %}
+    <span class="small muted">كل {{ freq_min }} دقيقة نحو <code>{{ ka.url or 'غير محدد' }}</code></span>
+  </div>
+  {% if thread_active %}
+    <div class="small muted" style="margin-top:8px;">
+      آخر نبضة: <strong>{{ ka.ts or 'لم يسجَّل بعد' }}</strong>
+      {% if ka.http_status %}
+        — رمز HTTP: <strong>{{ ka.http_status }}</strong>
+      {% endif %}
     </div>
-    <p class="small muted" style="margin:.5rem 0 0;">تحقق من سجلات الخادم أو متغيرات البيئة إذا لزم.</p>
+    {% if not ka.ok and ka.error %}
+      <div class="small" style="margin-top:6px;color:#f5a7b8;">
+        آخر خطأ: {{ ka.error }}
+      </div>
+    {% endif %}
   {% endif %}
 </div>
 

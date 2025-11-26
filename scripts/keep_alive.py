@@ -1,5 +1,5 @@
 # scripts/keep_alive.py
-# Keeps a Render/Flask app "warm" by pinging a health URL every 9 minutes.
+# Keeps a Render/Flask app "warm" by pinging a health URL every 6 minutes.
 # - Silent background daemon thread
 # - Prints a line to console on each ping
 # - Persists last status to data/keepalive/status.json for admin display
@@ -15,7 +15,7 @@ _started_lock = threading.Lock()
 _started = False
 
 # ---- Defaults ----
-DEFAULT_INTERVAL_SEC = 9 * 60  # 9 minutes
+DEFAULT_INTERVAL_SEC = 6 * 60  # 6 minutes
 REL_STATUS_PATH = Path("keepalive") / "status.json"
 
 
@@ -80,6 +80,18 @@ def _ping_once(url: str, timeout: float = 10.0) -> tuple[bool, int | None, str |
 def _loop(status_file: Path, interval_sec: int) -> None:
     url = _resolve_ping_url()
     print(f"[keep_alive] Started. Interval={interval_sec}s, URL={url}")
+    try:
+        _write_json_atomic(status_file, {
+            "ts": None,
+            "ok": False,
+            "http_status": None,
+            "url": url,
+            "interval_sec": int(interval_sec),
+            "error": None,
+            "running": True,
+        })
+    except Exception:
+        pass
     while True:
         ok, code, err = _ping_once(url)
         ts = _utcnow_iso()
@@ -95,6 +107,9 @@ def _loop(status_file: Path, interval_sec: int) -> None:
             "ok": bool(ok),
             "http_status": code,
             "url": url,
+            "interval_sec": int(interval_sec),
+            "error": err if not ok else None,
+            "running": True,
         }
         try:
             _write_json_atomic(status_file, doc)
@@ -136,4 +151,7 @@ def read_keepalive_status(data_dir: str | Path) -> dict:
         "ts": doc.get("ts"),
         "http_status": doc.get("http_status"),
         "url": doc.get("url"),
+        "interval_sec": doc.get("interval_sec"),
+        "error": doc.get("error"),
+        "running": bool(doc.get("running")),
     }
