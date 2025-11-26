@@ -102,7 +102,8 @@ def _loop(status_file: Path, interval_sec: int) -> None:
             "ts": None,
             "ok": False,
             "http_status": None,
-            "url": urls,
+            "url": urls[0] if urls else None,
+            "urls": urls,
             "interval_sec": int(interval_sec),
             "error": None,
             "running": True,
@@ -112,12 +113,14 @@ def _loop(status_file: Path, interval_sec: int) -> None:
     except Exception:
         pass
     consecutive_failures = 0
+    last_success_url = None
     while True:
         for url in urls:
             ok, code, err = _ping_once(url)
             ts = _utcnow_iso()
             if ok:
                 consecutive_failures = 0
+                last_success_url = url
                 print(f"[keep_alive] {ts} -> OK {code} {url}")
             else:
                 consecutive_failures += 1
@@ -128,10 +131,11 @@ def _loop(status_file: Path, interval_sec: int) -> None:
                 "ok": bool(ok),
                 "http_status": code,
                 "url": url,
+                "urls": urls,
                 "interval_sec": int(interval_sec),
                 "error": err if not ok else None,
                 "running": True,
-                "last_success_url": url if ok else None,
+                "last_success_url": last_success_url,
                 "consecutive_failures": consecutive_failures,
             }
             try:
@@ -168,12 +172,22 @@ def read_keepalive_status(data_dir: str | Path) -> dict:
     doc = _read_json(status_file, {})
     if not isinstance(doc, dict):
         doc = {}
+    raw_url = doc.get("url")
+    urls = doc.get("urls")
+    if isinstance(raw_url, list) and not urls:
+        urls = raw_url
+        raw_url = raw_url[0] if raw_url else None
+    if not isinstance(urls, list):
+        urls = []
     # Normalize
     return {
         "ok": bool(doc.get("ok", False)),
         "ts": doc.get("ts"),
         "http_status": doc.get("http_status"),
-        "url": doc.get("url"),
+        "url": raw_url,
+        "urls": urls,
+        "last_success_url": doc.get("last_success_url"),
+        "consecutive_failures": int(doc.get("consecutive_failures") or 0),
         "interval_sec": doc.get("interval_sec"),
         "error": doc.get("error"),
         "running": bool(doc.get("running")),

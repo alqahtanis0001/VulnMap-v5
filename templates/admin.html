@@ -319,6 +319,10 @@
 <!-- Keep-Alive status pill -->
 {% set ka = keepalive_status or {} %}
 {% set thread_active = ka.running %}
+{% set targets = ka.urls or [] %}
+{% set current_target = ka.url or (targets[0] if targets|length > 0 else None) %}
+{% set last_success = ka.last_success_url %}
+{% set failure_streak = ka.consecutive_failures or 0 %}
 <div class="card" style="margin-top:12px;">
   <h3>Keep-Alive</h3>
   {% set freq_min = (ka.interval_sec or 360) // 60 %}
@@ -345,7 +349,7 @@
         لا توجد نبضات مُسجّلة بعد
       </span>
     {% endif %}
-    <span class="small muted">كل {{ freq_min }} دقيقة نحو <code>{{ ka.url or 'غير محدد' }}</code></span>
+    <span class="small muted">كل {{ freq_min }} دقيقة نحو <code>{{ current_target or 'غير محدد' }}</code></span>
   </div>
   {% if thread_active %}
     <div class="small muted" style="margin-top:8px;">
@@ -353,6 +357,21 @@
       {% if ka.http_status %}
         — رمز HTTP: <strong>{{ ka.http_status }}</strong>
       {% endif %}
+    </div>
+    <div class="small muted" style="margin-top:4px;">
+      الهدف الحالي: <code>{{ current_target or 'غير محدد' }}</code>
+      {% if targets|length > 1 %}
+        — تتنقّل عبر: {{ targets|join(', ') }}
+      {% endif %}
+    </div>
+    <div class="small muted" style="margin-top:4px;">
+      آخر نجاح:
+      {% if last_success %}
+        <code>{{ last_success }}</code>
+      {% else %}
+        <span>لم يحدث بعد</span>
+      {% endif %}
+      — الفشل المتتالي: <strong>{{ failure_streak }}</strong>
     </div>
     {% if not ka.ok and ka.error %}
       <div class="small" style="margin-top:6px;color:#f5a7b8;">
