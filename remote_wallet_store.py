@@ -17,18 +17,28 @@ import json
 import os
 from typing import Optional
 from urllib import request, error
+from urllib.parse import urlparse
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 GIST_ID = os.getenv("WALLET_GIST_ID") or os.getenv("GIST_ID")
 GITHUB_TOKEN = os.getenv("WALLET_GITHUB_TOKEN") or os.getenv("GIST_TOKEN")
 GIST_FILENAME = os.getenv("WALLET_GIST_FILENAME", "wallet_rayan.json")
-API_URL = f"https://api.github.com/gists/{GIST_ID}" if GIST_ID else None
+LOCAL_FILE: Optional[Path] = None
+API_URL = None
+if GIST_ID:
+    if GIST_ID.startswith("file://"):
+        LOCAL_FILE = Path(urlparse(GIST_ID).path)
+    elif GIST_ID.startswith("/") or GIST_ID.startswith("~"):
+        LOCAL_FILE = Path(GIST_ID).expanduser()
+    else:
+        API_URL = f"https://api.github.com/gists/{GIST_ID}"
 USER_AGENT = "VulnMapWallet/1.0"
 _POOL = ThreadPoolExecutor(max_workers=2)
 
 
 def has_remote_wallet_store() -> bool:
-    return bool(API_URL and GITHUB_TOKEN)
+    return bool(LOCAL_FILE or (API_URL and GITHUB_TOKEN))
 
 
 def _headers() -> dict:
@@ -42,6 +52,14 @@ def _headers() -> dict:
 def fetch_remote_wallet(timeout: float = 10.0) -> Optional[dict]:
     """Return remote wallet dict if configured, else None."""
     if not has_remote_wallet_store():
+        return None
+
+    if LOCAL_FILE:
+        try:
+            if LOCAL_FILE.exists():
+                return json.loads(LOCAL_FILE.read_text(encoding="utf-8") or "{}")
+        except Exception:
+            return None
         return None
 
     def _fetch():
@@ -74,6 +92,14 @@ def fetch_remote_wallet(timeout: float = 10.0) -> Optional[dict]:
 def persist_remote_wallet(wallet: dict, timeout: float = 10.0) -> bool:
     if not has_remote_wallet_store():
         return False
+
+    if LOCAL_FILE:
+        try:
+            LOCAL_FILE.parent.mkdir(parents=True, exist_ok=True)
+            LOCAL_FILE.write_text(json.dumps(wallet, ensure_ascii=False, indent=2), encoding="utf-8")
+            return True
+        except Exception:
+            return False
 
     def _persist():
         try:

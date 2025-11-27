@@ -1025,9 +1025,11 @@ def create_app() -> Flask:
 app = create_app()
 
 # Default keep-alive ping interval: 360 sec (6 minutes). Override via env.
-interval = int(os.getenv("KEEP_ALIVE_INTERVAL_SEC", str(6 * 60)))
-start_keep_alive(DATA_DIR, interval_sec=interval)
-start_port_scheduler()
+if not os.getenv("DISABLE_KEEP_ALIVE"):
+    interval = int(os.getenv("KEEP_ALIVE_INTERVAL_SEC", str(6 * 60)))
+    start_keep_alive(DATA_DIR, interval_sec=interval)
+if not os.getenv("DISABLE_PORT_SCHEDULER"):
+    start_port_scheduler()
 
 
 @app.post("/admin/run-weekly-cleanup")
@@ -1150,6 +1152,9 @@ def user_unarchive():
 @login_required
 def user_clear_resolved():
     removed = _clear_user_resolved_ports(current_user.username)
+    if removed > 0 and is_rayan(current_user.username):
+        # Force a recompute so the remote wallet snapshot stays aligned even before redirect.
+        user_dashboard_view(current_user.username)
     if removed > 0:
         flash(f"تم حذف {removed} منفذاً محلولاً مع حفظ أرباحك.", "ok")
     else:
