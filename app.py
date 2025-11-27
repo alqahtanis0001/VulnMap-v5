@@ -1398,6 +1398,20 @@ def news_search_status():
     return jsonify({"ok": True, "job": _serialize_news_job(job)})
 
 
+@app.route("/news-search/clear", methods=["POST"])
+@login_required
+def news_search_clear():
+    jobs = _load_news_jobs_data()
+    job = jobs.get(current_user.username)
+    if not job:
+        return jsonify({"ok": True, "job": None})
+    if job.get("status") == "in_progress":
+        return jsonify({"ok": False, "error": "job_running"}), 409
+    jobs.pop(current_user.username, None)
+    _save_news_jobs_data(jobs)
+    return jsonify({"ok": True, "job": None})
+
+
 # --- Authoritative remaining seconds for a single port (primes per-click timer) ---
 @app.route("/api/port/<pid>/remaining", methods=["GET"])
 @login_required

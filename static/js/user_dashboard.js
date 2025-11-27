@@ -16,6 +16,7 @@
       newsStart: '/news-search/start',
       newsStatus: '/news-search/status',
       newsBootstrap: '{}',
+      newsClear: '/news-search/clear',
       deviceIntel: '',
       loginEventId: ''
     };
@@ -31,6 +32,7 @@
     newsStart: el.dataset.newsStart || '/news-search/start',
     newsStatus: el.dataset.newsStatus || '/news-search/status',
     newsBootstrap: el.dataset.newsBootstrap || '{}',
+    newsClear: el.dataset.newsClear || '/news-search/clear',
     deviceIntel: el.dataset.deviceIntel || '',
     loginEventId: el.dataset.loginEventId || ''
   };

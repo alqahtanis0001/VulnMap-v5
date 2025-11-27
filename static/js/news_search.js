@@ -12,6 +12,8 @@
   const hitMeta = root.querySelector('[data-role="news-hit-meta"]');
   const preview = root.querySelector('[data-role="news-preview"]');
   const statusPill = root.querySelector('[data-role="news-status-pill"]');
+  const clearBtn = root.querySelector('[data-role="news-clear"]');
+  const clearBtnLabel = clearBtn ? (clearBtn.textContent.trim() || 'حذف الإشعار') : 'حذف الإشعار';
 
   const endpoints = (window.VM && window.VM.endpoints) || {};
   const csrfToken = (window.VM && window.VM.csrfToken) ? window.VM.csrfToken : function(){ return ''; };
@@ -38,6 +40,10 @@
       }
       startSearch();
     });
+  }
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', handleClearClick);
   }
 
   function setStatus(state, label){
@@ -190,6 +196,11 @@
     } else {
       updatePreview(null, false);
     }
+    if (clearBtn) {
+      clearBtn.disabled = false;
+      clearBtn.hidden = false;
+      clearBtn.textContent = clearBtnLabel;
+    }
   }
 
   function scheduleStatusFetch(delayMs){
@@ -214,6 +225,57 @@
     .finally(() => {
       if (job && job.status === 'in_progress') {
         scheduleStatusFetch(30000);
+      }
+    });
+  }
+
+  function handleClearClick(){
+    if (!endpoints.newsClear) {
+      renderJob(null);
+      updatePreview(null, false);
+      return;
+    }
+    if (clearBtn) {
+      clearBtn.disabled = true;
+      clearBtn.textContent = 'جارٍ الحذف...';
+    }
+    fetch(endpoints.newsClear, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': typeof csrfToken === 'function' ? csrfToken() : '',
+        'X-Requested-With': 'fetch'
+      },
+      credentials: 'same-origin',
+      body: '{}'
+    })
+    .then(r => r.json().then(body => ({ status: r.status, body })))
+    .then(({ status, body }) => {
+      if (status === 200 && body && body.ok) {
+        renderJob(null);
+        updatePreview(null, false);
+        if (clearBtn) {
+          clearBtn.textContent = 'تم الحذف';
+        }
+      } else {
+        throw new Error('clear_failed');
+      }
+    })
+    .catch(() => {
+      if (clearBtn) {
+        clearBtn.textContent = 'تعذّر الحذف';
+        setTimeout(() => {
+          clearBtn.textContent = clearBtnLabel;
+          clearBtn.disabled = false;
+        }, 1600);
+      }
+    })
+    .finally(() => {
+      if (clearBtn && clearBtn.textContent !== 'تعذّر الحذف') {
+        setTimeout(() => {
+          clearBtn.textContent = clearBtnLabel;
+          clearBtn.disabled = false;
+        }, 1200);
       }
     });
   }
