@@ -66,13 +66,16 @@ def _merge_wallets(*wallets: Optional[Dict[str, float]]) -> Dict[str, float]:
     }
 
 
-def persist_rayan_wallet(data_dir: Path, wallet: Dict[str, float]) -> Dict[str, float]:
+def persist_rayan_wallet(
+    data_dir: Path, wallet: Dict[str, float], *, force_remote: bool = False
+) -> Dict[str, float]:
     sanitized = _sanitize_wallet(wallet)
     fp = get_rayan_wallet_file(data_dir)
     existing = _read_json(fp, {})
-    if existing != sanitized:
+    changed = existing != sanitized
+    if changed:
         _write_json_atomic(fp, sanitized)
-    if has_remote_wallet_store():
+    if has_remote_wallet_store() and (changed or force_remote):
         try:
             persist_remote_wallet(sanitized)
         except Exception:
@@ -102,7 +105,17 @@ def load_rayan_wallet(data_dir: Path, computed_wallet: Dict[str, float]) -> Dict
             remote = None
 
     merged = _merge_wallets(computed, persisted, remote)
-    return persist_rayan_wallet(data_dir, merged)
+
+    force_remote = False
+    if remote is None:
+        force_remote = True
+    else:
+        if remote["total_earned"] + EPSILON < merged["total_earned"]:
+            force_remote = True
+        if remote["available_balance"] + EPSILON < merged["available_balance"]:
+            force_remote = True
+
+    return persist_rayan_wallet(data_dir, merged, force_remote=force_remote)
 
 
 def reset_rayan_wallet(data_dir: Path, total_earned: float = 0.0) -> Dict[str, float]:
@@ -110,4 +123,5 @@ def reset_rayan_wallet(data_dir: Path, total_earned: float = 0.0) -> Dict[str, f
     return persist_rayan_wallet(
         data_dir,
         {"available_balance": 0.0, "total_earned": round(float(total_earned or 0.0), 2)},
+        force_remote=True,
     )
