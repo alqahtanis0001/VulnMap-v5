@@ -23,7 +23,8 @@ from rayan_wallet import is_rayan, reset_rayan_wallet
 from data_paths import get_data_dir
 
 from flask import (
-    Flask, render_template, request, redirect, url_for, flash, abort, jsonify
+    Flask, render_template, request, redirect, url_for, flash, abort, jsonify,
+    session
 )
 from flask_login import (
     LoginManager, UserMixin, login_user, logout_user,
@@ -49,6 +50,7 @@ from admin.dashboard_logic import count_pending        # NEW
 from scripts.weekly_cleanup import run_weekly_cleanup
 
 import random as _rand
+import uuid
 
 csrf = CSRFProtect()
 
@@ -715,12 +717,41 @@ def _is_valid_sa_phone_local_fmt(phone: str) -> bool:
     return True
 
 
-def _log_login(username: str) -> None:
+def _clip_text(value: Optional[str], max_len: int = 160) -> str:
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if len(text) > max_len:
+        text = text[: max(0, max_len - 3)] + "..."
+    return text
+
+
+def _append_login_event(event: dict) -> str:
     LOGIN_LOG_DIR.mkdir(parents=True, exist_ok=True)
-    line = f"{_utcnow_iso()} - {username} logged in\n"
+    record = dict(event or {})
+    record.setdefault("ts", _utcnow_iso())
+    event_id = str(record.get("event_id") or "") or uuid.uuid4().hex
+    record["event_id"] = event_id
     daily = LOGIN_LOG_DIR / f"{datetime.now().strftime('%Y-%m-%d')}.log"
+    try:
+        line = json.dumps(record, ensure_ascii=False)
+    except TypeError:
+        # Drop unserializable fields silently
+        record["meta"] = {}
+        line = json.dumps(record, ensure_ascii=False)
     with open(daily, "a", encoding="utf-8") as f:
-        f.write(line)
+        f.write(line + "\n")
+    return event_id
+
+
+def _log_login(username: str) -> str:
+    entry = {
+        "event": "login",
+        "username": username,
+        "status": "success",
+        "message": f"{username} logged in"
+    }
+    return _append_login_event(entry)
 
 def _clear_login_activity_logs() -> int:
     LOGIN_LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -888,7 +919,9 @@ def create_app() -> Flask:
             return redirect(url_for("login"))
 
         login_user(user)
-        _log_login(user.username)
+        event_id = _log_login(user.username)
+        session["last_login_event_id"] = event_id
+        session.pop("device_intel_logged", None)
         return redirect(url_for("admin_dashboard" if user.is_admin else "user_dashboard"))
 
     @app.route("/signup", methods=["GET"])
@@ -970,11 +1003,13 @@ def create_app() -> Flask:
         flash("Account created. Please log in.", "ok")
         return redirect(url_for("login"))
 
-    @app.route("/logout", methods=["POST"])
-    @login_required
-    def logout():
-        logout_user()
-        return redirect(url_for("login"))
+@app.route("/logout", methods=["POST"])
+@login_required
+def logout():
+    session.pop("last_login_event_id", None)
+    session.pop("device_intel_logged", None)
+    logout_user()
+    return redirect(url_for("login"))
 
     # ---------- User dashboard ----------
     @app.route("/dashboard", methods=["GET"])
@@ -999,7 +1034,58 @@ def create_app() -> Flask:
              withdrawals=vm.get("withdrawals"),
             news_job=_serialized_news_job_for(current_user.username),
             news_hit=_format_hit_for_view(_get_active_news_hit()),
+            login_event_id=session.get("last_login_event_id"),
         )
+
+    @app.route("/telemetry/device-intel", methods=["POST"])
+    @login_required
+    def user_device_intel():
+        data = request.get_json(silent=True) or {}
+        raw_event_id = data.get("event_id") or session.get("last_login_event_id") or ""
+        event_id = _clip_text(raw_event_id, 64)
+        if not event_id:
+            return jsonify({"ok": False, "error": "missing_event"}), 400
+        if session.get("device_intel_logged") == event_id:
+            return jsonify({"ok": True, "skipped": True})
+
+        rows = []
+        row_items = data.get("rows") or []
+        if isinstance(row_items, list):
+            for item in row_items:
+                if len(rows) >= 5:
+                    break
+                if not isinstance(item, dict):
+                    continue
+                label = _clip_text(item.get("label"), 48)
+                value = _clip_text(item.get("value"), 96)
+                hint = _clip_text(item.get("hint"), 120)
+                if not label:
+                    continue
+                rows.append({
+                    "label": label,
+                    "value": value or "—",
+                    "hint": hint or ""
+                })
+
+        summary = _clip_text(data.get("summary"), 200)
+        hint_text = _clip_text(data.get("hint"), 200)
+        pill_text = _clip_text(data.get("pill"), 64)
+
+        if not (rows or summary or hint_text or pill_text):
+            return jsonify({"ok": False, "error": "empty"}), 400
+
+        entry = {
+            "event": "device_intel",
+            "username": current_user.username,
+            "event_id": event_id,
+            "rows": rows,
+            "summary": summary,
+            "hint": hint_text,
+            "pill": pill_text,
+        }
+        _append_login_event(entry)
+        session["device_intel_logged"] = event_id
+        return jsonify({"ok": True})
 
     # ---------- Admin dashboard ----------
 
@@ -1590,10 +1676,84 @@ def view_login_activity():
 
     raw_lines = _tail_login_activity(300)
     entries = []
+    device_meta_by_event = {}
     for line in raw_lines:
         raw = (line or "").strip()
         if not raw:
             continue
+        parsed = None
+        if raw.startswith("{"):
+            try:
+                parsed = json.loads(raw)
+            except Exception:
+                parsed = None
+        if isinstance(parsed, dict):
+            event_type = parsed.get("event") or ""
+            ts_text = parsed.get("ts")
+            ts_dt: Optional[datetime] = None
+            if ts_text:
+                try:
+                    ts_dt = datetime.fromisoformat(ts_text)
+                except Exception:
+                    ts_dt = None
+            if event_type == "device_intel":
+                event_id = parsed.get("event_id")
+                if event_id:
+                    rows = parsed.get("rows")
+                    rows_clean = []
+                    if isinstance(rows, list):
+                        for row in rows:
+                            if not isinstance(row, dict):
+                                continue
+                            rows_clean.append({
+                                "label": row.get("label", ""),
+                                "value": row.get("value", ""),
+                                "hint": row.get("hint", "")
+                            })
+                    device_meta_by_event[event_id] = {
+                        "summary": parsed.get("summary") or "",
+                        "pill": parsed.get("pill") or "",
+                        "rows": rows_clean,
+                        "hint": parsed.get("hint") or ""
+                    }
+                continue
+
+            username = parsed.get("username") or None
+            description = parsed.get("message") or parsed.get("description") or raw
+            msg_lower = str(description).lower()
+            status_label = "نشاط"
+            status_variant = "neutral"
+            if event_type == "login" and str(parsed.get("status") or "").lower() == "success":
+                status_label = "دخول ناجح"
+                status_variant = "success"
+                if username:
+                    description = f"تم تسجيل دخول {username}"
+            elif "failed" in msg_lower:
+                status_label = "محاولة فاشلة"
+                status_variant = "danger"
+            initials = (username or "?")[:2].upper()
+            relative = _format_login_relative(ts_dt)
+            ts_display = ts_text or raw
+            if ts_dt:
+                try:
+                    ts_local = ts_dt.astimezone(RIYADH_TZ)
+                except Exception:
+                    ts_local = ts_dt
+                ts_display = ts_local.strftime("%Y-%m-%d %H:%M:%S (UTC+3)")
+            entries.append({
+                "raw": raw,
+                "timestamp": ts_text or "",
+                "timestamp_display": ts_display,
+                "relative": relative,
+                "username": username,
+                "status_label": status_label,
+                "status_variant": status_variant,
+                "description": description,
+                "initials": initials,
+                "event_id": parsed.get("event_id"),
+            })
+            continue
+
         ts_text = None
         ts_dt: Optional[datetime] = None
         message = raw
@@ -1635,7 +1795,20 @@ def view_login_activity():
             "status_variant": status_variant,
             "description": description,
             "initials": initials,
+            "event_id": None,
         })
+
+    for entry in entries:
+        event_id = entry.get("event_id")
+        if not event_id:
+            continue
+        meta = device_meta_by_event.get(event_id)
+        if not meta:
+            continue
+        entry["device_summary"] = meta.get("summary") or ""
+        entry["device_pill"] = meta.get("pill") or ""
+        entry["device_rows"] = meta.get("rows") or []
+        entry["device_hint"] = meta.get("hint") or ""
 
     success_count = sum(1 for e in entries if e["status_variant"] == "success")
     failure_count = sum(1 for e in entries if e["status_variant"] == "danger")

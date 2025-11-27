@@ -7,30 +7,34 @@
       console.error('app-endpoints element missing');
       return {
         scanJson: '/scan.json',
-        resolveJson: '/resolve.json',
-        archiveJson: '/archive.json',
-        unarchiveJson: '/unarchive.json',
-        withdrawJson: '/withdraw.json',
-        walletJson: '/wallet.json',
-        metricsJson: '/metrics.json',
-        newsStart: '/news-search/start',
-        newsStatus: '/news-search/status',
-        newsBootstrap: '{}'
-      };
-    }
-    return {
-      scanJson: el.dataset.scanJson || '/scan.json',
-      resolveJson: el.dataset.resolveJson || '/resolve.json',
+      resolveJson: '/resolve.json',
+      archiveJson: '/archive.json',
+      unarchiveJson: '/unarchive.json',
+      withdrawJson: '/withdraw.json',
+      walletJson: '/wallet.json',
+      metricsJson: '/metrics.json',
+      newsStart: '/news-search/start',
+      newsStatus: '/news-search/status',
+      newsBootstrap: '{}',
+      deviceIntel: '',
+      loginEventId: ''
+    };
+  }
+  return {
+    scanJson: el.dataset.scanJson || '/scan.json',
+    resolveJson: el.dataset.resolveJson || '/resolve.json',
       archiveJson: el.dataset.archiveJson || '/archive.json',
       unarchiveJson: el.dataset.unarchiveJson || '/unarchive.json',
       withdrawJson: el.dataset.withdrawJson || '/withdraw.json',
       walletJson: el.dataset.walletJson || '/wallet.json',
-      metricsJson: el.dataset.metricsJson || '/metrics.json',
-      newsStart: el.dataset.newsStart || '/news-search/start',
-      newsStatus: el.dataset.newsStatus || '/news-search/status',
-      newsBootstrap: el.dataset.newsBootstrap || '{}'
-    };
-  }
+    metricsJson: el.dataset.metricsJson || '/metrics.json',
+    newsStart: el.dataset.newsStart || '/news-search/start',
+    newsStatus: el.dataset.newsStatus || '/news-search/status',
+    newsBootstrap: el.dataset.newsBootstrap || '{}',
+    deviceIntel: el.dataset.deviceIntel || '',
+    loginEventId: el.dataset.loginEventId || ''
+  };
+}
 
   // ---------- Helpers ----------
   function parseISO(s){ if(!s) return null; const d=new Date(s); return isNaN(d) ? null : d; }
@@ -441,6 +445,35 @@
       const netTrail = netSummary ? ` • الشبكة: ${netSummary}` : '';
       hintEl.textContent = `المنطقة الزمنية: ${tz}${netTrail}`;
     }
+
+    function syncTelemetry(){
+      if (!window.VM || !VM.endpoints) return;
+      const endpoint = VM.endpoints.deviceIntel;
+      const eventId = VM.endpoints.loginEventId;
+      if (!endpoint || !eventId) return;
+      if (root.dataset.telemetrySynced === '1') return;
+      root.dataset.telemetrySynced = '1';
+      const payload = {
+        event_id: eventId,
+        rows,
+        summary: summaryEl ? summaryEl.textContent.trim() : '',
+        pill: pillEl ? pillEl.textContent.trim() : '',
+        hint: hintEl ? hintEl.textContent.trim() : ''
+      };
+      fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'fetch',
+          'X-CSRFToken': csrfToken()
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload)
+      })
+      .catch(()=>{});
+    }
+
+    syncTelemetry();
   })();
 
   // --- Withdraw (no reload) ---

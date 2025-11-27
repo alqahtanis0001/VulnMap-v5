@@ -914,6 +914,8 @@
      data-wallet-json="{{ url_for('wallet_snapshot_json') }}"
      data-news-start="{{ url_for('news_search_start') }}"
      data-news-status="{{ url_for('news_search_status') }}"
+     data-device-intel="{{ url_for('user_device_intel') }}"
+     data-login-event-id="{{ login_event_id or '' }}"
      data-news-bootstrap='{{ {"job": news_job, "hit": news_hit}|tojson }}'></div>
 {% endblock %}
 

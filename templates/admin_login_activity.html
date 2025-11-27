@@ -48,6 +48,30 @@
             <div class="log-entry__desc">
               {{ entry.description }}
             </div>
+            {% if entry.device_summary %}
+              <div class="log-entry__device">
+                <div class="log-entry__device-head">
+                  <span class="log-entry__device-pill">{{ entry.device_pill or 'بصمة' }}</span>
+                  <span class="small muted">{{ entry.device_summary }}</span>
+                </div>
+                {% if entry.device_rows %}
+                  <div class="log-entry__device-grid">
+                    {% for row in entry.device_rows %}
+                      <div class="log-entry__device-item">
+                        <span>{{ row.label }}</span>
+                        <strong>{{ row.value }}</strong>
+                        {% if row.hint %}
+                          <div class="small muted">{{ row.hint }}</div>
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                {% if entry.device_hint %}
+                  <div class="small muted log-entry__device-foot">{{ entry.device_hint }}</div>
+                {% endif %}
+              </div>
+            {% endif %}
             <div class="log-entry__meta small muted">
               <span>{{ entry.timestamp_display }}</span>
               {% if entry.relative %}
@@ -156,6 +180,55 @@
   display:flex;
   gap:8px;
   flex-wrap:wrap;
+}
+.log-entry__device{
+  margin:8px 0 10px;
+  padding:10px 12px;
+  border-radius:12px;
+  border:1px solid rgba(255,255,255,.06);
+  background:#0f141e;
+}
+.log-entry__device-head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:8px;
+}
+.log-entry__device-pill{
+  padding:.2rem .6rem;
+  border-radius:999px;
+  border:1px solid rgba(95,168,255,.4);
+  background:rgba(95,168,255,.15);
+  font-size:.8rem;
+  font-weight:600;
+  letter-spacing:.4px;
+  text-transform:uppercase;
+}
+.log-entry__device-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:10px;
+}
+.log-entry__device-item{
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.05);
+  background:rgba(255,255,255,.02);
+}
+.log-entry__device-item span{
+  display:block;
+  font-size:.8rem;
+  color:var(--muted);
+  margin-bottom:4px;
+}
+.log-entry__device-item strong{
+  display:block;
+  font-size:1rem;
+  font-weight:700;
+}
+.log-entry__device-foot{
+  margin-top:8px;
 }
 .status-pill{
   display:inline-flex;
