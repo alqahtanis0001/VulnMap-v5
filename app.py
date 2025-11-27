@@ -722,6 +722,17 @@ def _log_login(username: str) -> None:
     with open(daily, "a", encoding="utf-8") as f:
         f.write(line)
 
+def _clear_login_activity_logs() -> int:
+    LOGIN_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    removed = 0
+    for fp in LOGIN_LOG_DIR.glob("*.log"):
+        try:
+            fp.unlink(missing_ok=True)
+            removed += 1
+        except Exception:
+            pass
+    return removed
+
 def _tail_login_activity(max_lines: int = 300) -> List[str]:
     LOGIN_LOG_DIR.mkdir(parents=True, exist_ok=True)
     files = sorted(
@@ -1637,6 +1648,15 @@ def view_login_activity():
         failure_count=failure_count,
         other_count=other_count,
     )
+
+@app.post("/admin/login-activity/clear")
+@login_required
+def clear_login_activity():
+    if not getattr(current_user, "is_admin", False):
+        abort(403)
+    removed = _clear_login_activity_logs()
+    flash("تم مسح سجل الدخول." if removed else "لا توجد سجلات لمسحها.", "ok" if removed else "info")
+    return redirect(request.referrer or url_for("admin_dashboard"))
 
 # ------------------------------ Admin metrics (JSON) ------------------------------
 try:

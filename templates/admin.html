@@ -142,6 +142,12 @@
     </a>
 
     <a class="btn secondary" href="{{ url_for('login_activity') }}">📝 سجل الدخول</a>
+
+    <form method="post" action="{{ url_for('clear_login_activity') }}" style="margin:0;"
+          onsubmit="return confirm('سيتم حذف جميع سجلات تسجيل الدخول. متابعة؟');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn danger small" type="submit">🧽 مسح سجل الدخول</button>
+    </form>
   </div>
 </div>
 
