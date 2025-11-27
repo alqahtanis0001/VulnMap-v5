@@ -65,6 +65,44 @@
     if(t) t.textContent = formatReward(wallet.total_earned||0);
   }
 
+  const withdrawPendingTotal = document.querySelector('[data-withdraw-pending-total]');
+  const withdrawPendingCount = document.querySelector('[data-withdraw-pending-count]');
+  const withdrawHistory = document.querySelector('[data-withdraw-history]');
+
+  function renderWithdrawHistory(items){
+    if(!withdrawHistory) return;
+    withdrawHistory.innerHTML = '';
+    if(!items || !items.length){
+      const li = document.createElement('li');
+      li.className = 'withdraw-history__empty';
+      li.textContent = 'لا توجد طلبات سحب بعد.';
+      withdrawHistory.appendChild(li);
+      return;
+    }
+    items.forEach(item => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <div>
+          <div class="withdraw-history__amount">${formatReward(item.amount||0)} <span>ر.س</span></div>
+          <div class="withdraw-history__date">${item.created_display || '—'}</div>
+        </div>
+        <span class="withdraw-status withdraw-status--${item.status_class || 'neutral'}">${item.status_label || ''}</span>
+      `;
+      withdrawHistory.appendChild(li);
+    });
+  }
+
+  function updateWithdrawUI(summary){
+    if(!summary) return;
+    if(withdrawPendingTotal){
+      withdrawPendingTotal.textContent = formatReward(summary.pending_total || 0);
+    }
+    if(withdrawPendingCount){
+      withdrawPendingCount.textContent = summary.pending_count || 0;
+    }
+    renderWithdrawHistory(summary.recent || []);
+  }
+
   function idempotencyKey(){
     if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
     return String(Date.now()) + Math.random().toString(16).slice(2);
@@ -193,6 +231,9 @@
       if (!payload) return;
       if (payload.counts) updateHeaderCounts(payload.counts.discovered, payload.counts.resolved);
       if (payload.wallet) updateWallet(payload.wallet);
+    },
+    updateWithdrawals(summary){
+      updateWithdrawUI(summary);
     }
   });
 
@@ -329,6 +370,9 @@
         if (body.wallet) {
           // This uses the built-in updater already used by scan/resolve
           VM.updateCountsWallet(body);
+        }
+        if (body.withdrawals && VM.updateWithdrawals) {
+          VM.updateWithdrawals(body.withdrawals);
         }
         // Clear the input and re-enable
         amountInput.value = '';

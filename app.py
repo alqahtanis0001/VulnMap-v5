@@ -984,6 +984,7 @@ def create_app() -> Flask:
             resolved_count=len(resolved_v),
             available_balance=vm["wallet"]["available_balance"],
             total_earned=vm["wallet"]["total_earned"],
+             withdrawals=vm.get("withdrawals"),
             news_job=_serialized_news_job_for(current_user.username),
             news_hit=_format_hit_for_view(_get_active_news_hit()),
         )
@@ -1279,7 +1280,8 @@ def user_withdraw_json():
         "ok": True,
         "request": rec,
         "counts": {"discovered": len(vm_after["discovered"]), "resolved": len(vm_after["resolved"])},
-        "wallet": vm_after["wallet"]
+        "wallet": vm_after["wallet"],
+        "withdrawals": vm_after.get("withdrawals"),
     }), 200
 
 

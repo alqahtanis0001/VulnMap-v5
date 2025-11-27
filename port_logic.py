@@ -28,6 +28,13 @@ PROCESSED_FILE = DATA_DIR / "ports" / "processed_requests.json"
 WITHDRAWALS_FILE = get_withdrawals_file(DATA_DIR)
 USERS_FILE = DATA_DIR / "users.json"
 WALLET_SNAPSHOT_FILE = DATA_DIR / "wallet_snapshots.json"
+WALLET_EPSILON = 0.01
+
+WITHDRAW_STATUS_META = {
+    "pending": ("قيد المراجعة", "neutral"),
+    "approved": ("مقبول", "success"),
+    "rejected": ("مرفوض", "danger"),
+}
 
 # ---------- Utilities ----------
 
@@ -118,6 +125,61 @@ def get_wallet_snapshot(username: str) -> Optional[Dict[str, float]]:
     if isinstance(val, dict):
         return _sanitize_wallet_dict(val)
     return None
+
+
+def _format_withdraw_ts(ts: str | None) -> str:
+    if not ts:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(ts)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        return ts
+
+
+def _withdrawals_overview(username: str, limit: int = 5) -> Dict[str, object]:
+    data = _read_json(WITHDRAWALS_FILE, [])
+    summary = {
+        "recent": [],
+        "pending_total": 0.0,
+        "pending_count": 0,
+        "approved_total": 0.0,
+    }
+    if not isinstance(data, list):
+        return summary
+    uname = (username or "").strip().lower()
+    records = []
+    for row in data:
+        if (row.get("username", "").strip().lower() != uname):
+            continue
+        try:
+            amt = round(float(row.get("amount_sar") or 0.0), 2)
+        except Exception:
+            amt = 0.0
+        status = (row.get("status") or "pending").strip().lower()
+        if status == "pending":
+            summary["pending_total"] += amt
+            summary["pending_count"] += 1
+        elif status == "approved":
+            summary["approved_total"] += amt
+        records.append((row, amt, status))
+    records.sort(key=lambda r: r[0].get("created_at") or "", reverse=True)
+    for row, amt, status in records[:limit]:
+        label, css = WITHDRAW_STATUS_META.get(status, ("غير معروف", "neutral"))
+        summary["recent"].append({
+            "id": row.get("id"),
+            "amount": amt,
+            "status": status,
+            "status_label": label,
+            "status_class": css,
+            "created_at": row.get("created_at"),
+            "created_display": _format_withdraw_ts(row.get("created_at")),
+        })
+    summary["pending_total"] = round(summary["pending_total"], 2)
+    summary["approved_total"] = round(summary["approved_total"], 2)
+    return summary
 
 
 # ---------- Data structures ----------
@@ -489,12 +551,15 @@ def user_dashboard_view(username: str) -> Dict:
 
     snapshot = get_wallet_snapshot(username)
     if snapshot:
-        wallet = {
-            "available_balance": max(wallet["available_balance"], snapshot["available_balance"]),
-            "total_earned": max(wallet["total_earned"], snapshot["total_earned"]),
-        }
+        snap = _sanitize_wallet_dict(snapshot)
+        if wallet["total_earned"] + WALLET_EPSILON < snap["total_earned"]:
+            wallet = snap
+        else:
+            wallet["total_earned"] = max(wallet["total_earned"], snap["total_earned"])
+            wallet["available_balance"] = min(wallet["available_balance"], wallet["total_earned"])
 
     wallet = _persist_wallet_snapshot(username, wallet)
+    withdrawals = _withdrawals_overview(username)
 
     return {
         "assigned": assigned,
@@ -508,6 +573,7 @@ def user_dashboard_view(username: str) -> Dict:
             "archived": len(archived),
         },
         "wallet": wallet,
+        "withdrawals": withdrawals,
     }
 
 def admin_stats_view() -> Dict:
