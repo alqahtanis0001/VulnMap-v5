@@ -36,9 +36,9 @@
     }
     .hero-metrics{
       display:flex;
-      gap:8px;
       flex-wrap:wrap;
-      align-items:center;
+      gap:10px;
+      align-items:flex-start;
     }
     .stat-row{
       display:flex;
@@ -75,11 +75,12 @@
     .hero-system{
       display:flex;
       flex-wrap:wrap;
-      gap:12px;
+      gap:10px;
+      align-items:center;
       background:rgba(9,14,25,.45);
       border:1px solid rgba(255,255,255,.05);
       border-radius:12px;
-      padding:10px 12px;
+      padding:8px 10px;
     }
     .hero-system-item{
       flex:1 1 120px;
@@ -97,14 +98,13 @@
       color:#fff;
     }
     .hero-system-status{
-      display:flex;
-      flex-direction:column;
-      font-size:.78rem;
-      color:#c9ffe4;
-    }
-    .hero-system-status small{
-      color:#9bb1ff;
-      font-size:.76rem;
+      padding:.2rem .6rem;
+      border-radius:999px;
+      border:1px solid rgba(111,255,195,.4);
+      background:rgba(10,23,25,.8);
+      font-size:.74rem;
+      color:#9cffe1;
+      display:none;
     }
     .hero-panels{
       flex:0 0 280px;
@@ -738,16 +738,7 @@
             <span>الذاكرة</span>
             <strong data-health-ram>--%</strong>
           </div>
-          <div class="hero-system-item">
-            <span>حالة الخادم</span>
-            <strong>مستقر</strong>
-            <span class="hero-system-status" data-health-status style="display:none;">وضع مبسط</span>
-          </div>
-          <div class="hero-system-item">
-            <span>آخر تحديث للخادم</span>
-            <strong data-health-updated>—</strong>
-            <small>يُحدّث كل بضع ثوانٍ</small>
-          </div>
+          <span class="hero-system-status" data-health-status style="display:none;">وضع مبسط</span>
         </div>
       </div>
     </div>
