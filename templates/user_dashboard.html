@@ -147,65 +147,6 @@
       font-size:.85rem;
       color:rgba(255,255,255,.82);
     }
-    .hero-device-intel{
-      border-radius:14px;
-      border:1px solid rgba(100,195,255,.15);
-      background:rgba(15,20,30,.7);
-      padding:10px;
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      font-size:.85rem;
-    }
-    .hero-device-intel header{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:8px;
-    }
-    .hero-device-intel header p{
-      margin:0;
-      font-size:.82rem;
-      color:var(--muted);
-    }
-    .hero-device-pill{
-      padding:.2rem .6rem;
-      border-radius:999px;
-      border:1px solid rgba(111,255,195,.3);
-      background:rgba(10,23,25,.8);
-      font-size:.72rem;
-      font-weight:600;
-      color:#9cffe1;
-    }
-    .hero-device-grid{
-      display:grid;
-      grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
-      gap:6px;
-    }
-    .hero-device-grid .device-intel-item{
-      padding:6px;
-      border-radius:8px;
-      border:1px solid rgba(255,255,255,.06);
-      background:rgba(10,15,24,.55);
-      min-height:58px;
-    }
-    .hero-device-grid .device-intel-item span{
-      display:block;
-      font-size:.74rem;
-      color:var(--muted);
-      margin-bottom:2px;
-    }
-    .hero-device-grid .device-intel-item strong{
-      display:block;
-      font-size:.9rem;
-      font-weight:700;
-      color:#eef9ff;
-      word-break:break-word;
-    }
-    .device-intel-footnote{
-      font-size:.72rem;
-      color:var(--muted);
-    }
     .dashboard-clusters{
       display:flex;
       flex-direction:column;
@@ -756,33 +697,6 @@
           إجمالي الأرباح: <strong>{{ '%.2f'|format(total_earned or 0) }}</strong> ر.س
         </div>
         <div class="wallet-note">🔒 أموالك محفوظة بأمان حتى بعد عمليات التنظيف أو إعادة التشغيل.</div>
-      </div>
-      <div class="hero-device-intel" data-device-intel>
-        <header>
-          <p data-device-intel-summary>نحلل جهازك لنكيّف التجربة الحالية.</p>
-          <span class="hero-device-pill" data-device-intel-pill>جارٍ التحليل...</span>
-        </header>
-        <div class="hero-device-grid" data-device-intel-list>
-          <div class="device-intel-item">
-            <span>نوع الجهاز</span>
-            <strong>—</strong>
-          </div>
-          <div class="device-intel-item">
-            <span>النظام</span>
-            <strong>—</strong>
-          </div>
-          <div class="device-intel-item">
-            <span>المتصفح</span>
-            <strong>—</strong>
-          </div>
-          <div class="device-intel-item">
-            <span>الدقة واللغة</span>
-            <strong>—</strong>
-          </div>
-        </div>
-        <div class="device-intel-footnote small muted" data-device-intel-hints>
-          ننتظر المتصفح ليكشف قدراته...
-        </div>
       </div>
     </div>
   </section>
