@@ -107,10 +107,9 @@
       flex-direction:column;
       gap:12px;
     }
-    .cluster-main{
-      flex:1 1 auto;
-    }
-    .cluster-side{
+    .cluster-main,
+    .cluster-actions,
+    .cluster-infra{
       flex:1 1 auto;
     }
     .cluster-row{
@@ -543,18 +542,21 @@
     }
     @media (min-width:961px){
       .dashboard-clusters{
-        flex-direction:row;
+        display:grid;
+        grid-template-columns:minmax(0, 1fr) minmax(260px, 340px);
+        gap:16px;
         align-items:flex-start;
       }
-      .cluster-side{
-        order:2;
-        flex:0 0 320px;
+      .cluster-main{
+        grid-column:1;
+      }
+      .cluster-actions,
+      .cluster-infra{
+        grid-column:2;
+      }
+      .cluster-actions{
         position:sticky;
         top:12px;
-      }
-      .cluster-main{
-        order:1;
-        flex:1 1 auto;
       }
     }
     @media (min-width:720px){
@@ -647,7 +649,8 @@
       .row-actions form{
         width:100%;
       }
-      .cluster-side .btn{
+      .cluster-actions .btn,
+      .cluster-infra .btn{
         width:100%;
       }
     }
@@ -699,7 +702,7 @@
   </section>
 
   <div class="dashboard-clusters">
-    <section class="cluster cluster-side">
+    <section class="cluster cluster-actions">
       <div class="cluster-row cluster-row--actions-news">
         <div class="card action-card">
           <h3>الإجراءات السريعة</h3>
@@ -789,56 +792,6 @@
             <div class="small muted" style="margin-top:8px;" data-role="news-preview">
               سيظهر تقرير الذكاء الاصطناعي فور اكتمال البحث وتحليل قاعدة بيانات VulnMap.
             </div>
-          </div>
-        </div>
-      </div>
-      <div class="cluster-row cluster-row--infra">
-        <div class="card health-card" id="health-card">
-          <h3>حالة الخادم (CPU / RAM)</h3>
-          <div class="health-stats">
-            <div class="health-stat">
-              <div class="small muted">المعالج</div>
-              <div style="font-size:1.4em;font-weight:700;"><span data-health-cpu>--%</span></div>
-            </div>
-            <div class="health-stat">
-              <div class="small muted">الذاكرة</div>
-              <div style="font-size:1.4em;font-weight:700;"><span data-health-ram>--%</span></div>
-            </div>
-          </div>
-          <canvas id="user-health-canvas" height="140"></canvas>
-          <div class="small muted" style="margin-top:6px;">
-            آخر تحديث: <span data-health-updated>—</span>
-            <span data-health-status class="chip" style="margin-inline-start:8px;display:none;">وضع مبسط</span>
-          </div>
-        </div>
-        <div class="card device-intel-card" data-device-intel>
-          <div class="device-intel-header">
-            <div>
-              <h3>بصمة جهازك الفورية</h3>
-              <p class="small muted" data-device-intel-summary>نرسل إشارات ذكية لنفهم سلوك جهازك ونضبط تجربة VulnMap لحالة الاستخدام الحالية.</p>
-            </div>
-            <span class="device-intel-pill" data-device-intel-pill>جارٍ التحليل...</span>
-          </div>
-          <div class="device-intel-grid" data-device-intel-list>
-            <div class="device-intel-item">
-              <span>نوع الجهاز</span>
-              <strong>—</strong>
-            </div>
-            <div class="device-intel-item">
-              <span>النظام</span>
-              <strong>—</strong>
-            </div>
-            <div class="device-intel-item">
-              <span>المتصفح</span>
-              <strong>—</strong>
-            </div>
-            <div class="device-intel-item">
-              <span>الدقة واللغة</span>
-              <strong>—</strong>
-            </div>
-          </div>
-          <div class="device-intel-footnote small muted" data-device-intel-hints>
-            ننتظر المتصفح ليكشف قدراته...
           </div>
         </div>
       </div>
@@ -974,8 +927,61 @@
         </div>
       </div>
     </section>
+
+    <section class="cluster cluster-infra">
+      <div class="cluster-row cluster-row--infra">
+        <div class="card health-card" id="health-card">
+          <h3>حالة الخادم (CPU / RAM)</h3>
+          <div class="health-stats">
+            <div class="health-stat">
+              <div class="small muted">المعالج</div>
+              <div style="font-size:1.4em;font-weight:700;"><span data-health-cpu>--%</span></div>
+            </div>
+            <div class="health-stat">
+              <div class="small muted">الذاكرة</div>
+              <div style="font-size:1.4em;font-weight:700;"><span data-health-ram>--%</span></div>
+            </div>
+          </div>
+          <canvas id="user-health-canvas" height="140"></canvas>
+          <div class="small muted" style="margin-top:6px;">
+            آخر تحديث: <span data-health-updated>—</span>
+            <span data-health-status class="chip" style="margin-inline-start:8px;display:none;">وضع مبسط</span>
+          </div>
+        </div>
+        <div class="card device-intel-card" data-device-intel>
+          <div class="device-intel-header">
+            <div>
+              <h3>بصمة جهازك الفورية</h3>
+              <p class="small muted" data-device-intel-summary>نرسل إشارات ذكية لنفهم سلوك جهازك ونضبط تجربة VulnMap لحالة الاستخدام الحالية.</p>
+            </div>
+            <span class="device-intel-pill" data-device-intel-pill>جارٍ التحليل...</span>
+          </div>
+          <div class="device-intel-grid" data-device-intel-list>
+            <div class="device-intel-item">
+              <span>نوع الجهاز</span>
+              <strong>—</strong>
+            </div>
+            <div class="device-intel-item">
+              <span>النظام</span>
+              <strong>—</strong>
+            </div>
+            <div class="device-intel-item">
+              <span>المتصفح</span>
+              <strong>—</strong>
+            </div>
+            <div class="device-intel-item">
+              <span>الدقة واللغة</span>
+              <strong>—</strong>
+            </div>
+          </div>
+          <div class="device-intel-footnote small muted" data-device-intel-hints>
+            ننتظر المتصفح ليكشف قدراته...
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
-</div>
+
 
 
 <!-- Scan overlay (consumed by scan_animation.js) -->
