@@ -12,24 +12,27 @@
       display:flex;
       flex-wrap:wrap;
       gap:14px;
-      align-items:flex-start;
+      align-items:stretch;
       justify-content:space-between;
       padding:14px 16px;
-      background:linear-gradient(145deg, rgba(102,217,168,.08), rgba(78,124,255,.07)), var(--card);
-      border:1px solid #1e2b3f;
+      background:linear-gradient(150deg, rgba(32,68,122,.55), rgba(13,23,35,.85));
+      border:1px solid rgba(37,64,115,.6);
+      box-shadow:0 18px 40px rgba(0,0,0,.35);
     }
-    .dashboard-hero .hero-text{
-      flex:1;
-      min-width:240px;
+    .hero-summary{
+      flex:1 1 300px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
     }
-    .dashboard-hero h2{
-      margin:0 0 2px;
-      font-size:1.35rem;
+    .hero-summary h2{
+      margin:0;
+      font-size:1.3rem;
     }
-    .hero-text p{
-      margin:0 0 6px;
+    .hero-summary p{
+      margin:0;
       color:var(--muted);
-      font-size:.92rem;
+      font-size:.9rem;
     }
     .stat-row{
       display:flex;
@@ -63,6 +66,41 @@
       border-color:#1f5037;
       background:#12231b;
       color:#bdf0d2;
+    }
+    .hero-system{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      background:rgba(9,14,25,.45);
+      border:1px solid rgba(255,255,255,.05);
+      border-radius:12px;
+      padding:10px 12px;
+    }
+    .hero-system-item{
+      flex:1 1 120px;
+      min-width:120px;
+    }
+    .hero-system-item span{
+      display:block;
+      font-size:.78rem;
+      color:var(--muted);
+    }
+    .hero-system-item strong{
+      display:block;
+      font-size:1.2rem;
+      font-weight:800;
+      color:#fff;
+    }
+    .hero-system-status{
+      display:block;
+      font-size:.75rem;
+      color:#c9ffe4;
+    }
+    .hero-panels{
+      flex:0 0 280px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
     }
     .wallet-panel{
       min-width:240px;
@@ -99,7 +137,6 @@
       color:rgba(255,255,255,.82);
     }
     .hero-device-intel{
-      flex:1 1 240px;
       border-radius:14px;
       border:1px solid rgba(100,195,255,.15);
       background:rgba(15,20,30,.7);
@@ -607,8 +644,15 @@
       }
     }
     @media (max-width:480px){
+      .hero-summary,
+      .hero-panels{
+        flex:1 1 100%;
+      }
+      .hero-panels{
+        flex-direction:column;
+      }
       .dashboard-hero{
-        padding:14px;
+        padding:12px;
       }
       .wallet-amount{
         font-size:1.4rem;
@@ -621,9 +665,7 @@
         justify-content:space-between;
       }
       .action-card,
-      .news-card,
-      .health-card,
-      .device-intel-card{
+      .news-card{
         font-size:.9rem;
       }
       .row-actions{
@@ -634,8 +676,7 @@
       .row-actions form{
         width:100%;
       }
-      .cluster-actions .btn,
-      .cluster-infra .btn{
+      .cluster-actions .btn{
         width:100%;
       }
     }
@@ -661,54 +702,73 @@
 {% endfor %}
 <div class="dashboard-page rtl">
   <section class="card dashboard-hero">
-    <div class="hero-text">
-      <h2>لوحة التحكم</h2>
-      <p>تابع منافذك المكتشفة ({{ clean_counts.discovered }}) والمحلولة ({{ clean_counts.resolved }})، ثم اطلب السحب فور جهوز الرصيد.</p>
+    <div class="hero-summary">
+      <div>
+        <h2>لوحة التحكم</h2>
+        <p>تابع منافذك المكتشفة ({{ clean_counts.discovered }}) والمحلولة ({{ clean_counts.resolved }})، ثم اطلب السحب فور جهوز الرصيد.</p>
+      </div>
       <div class="stat-row">
         <span class="stat-chip stat-chip--assigned">📦 المسندة: <strong>{{ undiscovered_count }}</strong></span>
         <span class="stat-chip stat-chip--discovered">🟡 المكتشفة: <strong>{{ clean_counts.discovered }}</strong></span>
         <span class="stat-chip stat-chip--resolved">✅ المحلولة: <strong>{{ clean_counts.resolved }}</strong></span>
       </div>
+      <div class="hero-system">
+        <div class="hero-system-item">
+          <span>المعالج</span>
+          <strong data-health-cpu>--%</strong>
+        </div>
+        <div class="hero-system-item">
+          <span>الذاكرة</span>
+          <strong data-health-ram>--%</strong>
+        </div>
+        <div class="hero-system-item">
+          <span>آخر تحديث</span>
+          <strong data-health-updated>—</strong>
+          <span class="hero-system-status" data-health-status style="display:none;">وضع مبسط</span>
+        </div>
+      </div>
     </div>
-    <div class="wallet-panel">
-      <div class="wallet-label">الرصيد الحالي</div>
-      <div class="wallet-amount">
-        <span id="available-balance"
-              data-balance="{{ '%.2f'|format(available_balance or 0) }}">
-          {{ '%.2f'|format(available_balance or 0) }}
-        </span>
-        <span class="currency">ر.س</span>
+    <div class="hero-panels">
+      <div class="wallet-panel">
+        <div class="wallet-label">الرصيد الحالي</div>
+        <div class="wallet-amount">
+          <span id="available-balance"
+                data-balance="{{ '%.2f'|format(available_balance or 0) }}">
+            {{ '%.2f'|format(available_balance or 0) }}
+          </span>
+          <span class="currency">ر.س</span>
+        </div>
+        <div class="wallet-sub">
+          إجمالي الأرباح: <strong>{{ '%.2f'|format(total_earned or 0) }}</strong> ر.س
+        </div>
+        <div class="wallet-note">🔒 أموالك محفوظة بأمان حتى بعد عمليات التنظيف أو إعادة التشغيل.</div>
       </div>
-      <div class="wallet-sub">
-        إجمالي الأرباح: <strong>{{ '%.2f'|format(total_earned or 0) }}</strong> ر.س
-      </div>
-      <div class="wallet-note">🔒 أموالك محفوظة بأمان حتى بعد عمليات التنظيف أو إعادة التشغيل.</div>
-    </div>
-    <div class="hero-device-intel" data-device-intel>
-      <header>
-        <p data-device-intel-summary>نحلل جهازك لنكيّف التجربة الحالية.</p>
-        <span class="hero-device-pill" data-device-intel-pill>جارٍ التحليل...</span>
-      </header>
-      <div class="hero-device-grid" data-device-intel-list>
-        <div class="device-intel-item">
-          <span>نوع الجهاز</span>
-          <strong>—</strong>
+      <div class="hero-device-intel" data-device-intel>
+        <header>
+          <p data-device-intel-summary>نحلل جهازك لنكيّف التجربة الحالية.</p>
+          <span class="hero-device-pill" data-device-intel-pill>جارٍ التحليل...</span>
+        </header>
+        <div class="hero-device-grid" data-device-intel-list>
+          <div class="device-intel-item">
+            <span>نوع الجهاز</span>
+            <strong>—</strong>
+          </div>
+          <div class="device-intel-item">
+            <span>النظام</span>
+            <strong>—</strong>
+          </div>
+          <div class="device-intel-item">
+            <span>المتصفح</span>
+            <strong>—</strong>
+          </div>
+          <div class="device-intel-item">
+            <span>الدقة واللغة</span>
+            <strong>—</strong>
+          </div>
         </div>
-        <div class="device-intel-item">
-          <span>النظام</span>
-          <strong>—</strong>
+        <div class="device-intel-footnote small muted" data-device-intel-hints>
+          ننتظر المتصفح ليكشف قدراته...
         </div>
-        <div class="device-intel-item">
-          <span>المتصفح</span>
-          <strong>—</strong>
-        </div>
-        <div class="device-intel-item">
-          <span>الدقة واللغة</span>
-          <strong>—</strong>
-        </div>
-      </div>
-      <div class="device-intel-footnote small muted" data-device-intel-hints>
-        ننتظر المتصفح ليكشف قدراته...
       </div>
     </div>
   </section>
@@ -940,28 +1000,7 @@
       </div>
     </section>
 
-    <section class="cluster cluster-infra">
-      <div class="cluster-row cluster-row--infra">
-        <div class="card health-card" id="health-card">
-          <h3>حالة الخادم (CPU / RAM)</h3>
-          <div class="health-stats">
-            <div class="health-stat">
-              <div class="small muted">المعالج</div>
-              <div style="font-size:1.4em;font-weight:700;"><span data-health-cpu>--%</span></div>
-            </div>
-            <div class="health-stat">
-              <div class="small muted">الذاكرة</div>
-              <div style="font-size:1.4em;font-weight:700;"><span data-health-ram>--%</span></div>
-            </div>
-          </div>
-          <canvas id="user-health-canvas" height="140"></canvas>
-          <div class="small muted" style="margin-top:6px;">
-            آخر تحديث: <span data-health-updated>—</span>
-            <span data-health-status class="chip" style="margin-inline-start:8px;display:none;">وضع مبسط</span>
-          </div>
-        </div>
-      </div>
-    </section>
+
   </div>
 </div>
 

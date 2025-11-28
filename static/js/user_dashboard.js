@@ -260,29 +260,34 @@
   (function initHealthCard(){
     if (!window.VM || !VM.endpoints || !VM.endpoints.metricsJson) return;
     const canvas = document.getElementById('user-health-canvas');
-    if (!canvas) return;
     const cpuSpan = document.querySelector('[data-health-cpu]');
     const ramSpan = document.querySelector('[data-health-ram]');
     const updatedSpan = document.querySelector('[data-health-updated]');
     const statusChip = document.querySelector('[data-health-status]');
-    const ctx = canvas.getContext('2d');
+    if (!canvas && !cpuSpan && !ramSpan && !updatedSpan && !statusChip) return;
+    const hasCanvas = !!canvas;
+    const ctx = hasCanvas ? canvas.getContext('2d') : null;
     const history = { cpu: [], ram: [], max: 60 };
 
     let dpr = window.devicePixelRatio || 1;
 
     function resize(){
+      if (!hasCanvas) return;
       const rect = canvas.getBoundingClientRect();
       dpr = window.devicePixelRatio || 1;
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
       ctx.setTransform(1,0,0,1,0,0);
       ctx.scale(dpr, dpr);
-      drawChart();
+      if (hasCanvas) drawChart();
     }
-    resize();
-    window.addEventListener('resize', resize);
+    if (hasCanvas){
+      resize();
+      window.addEventListener('resize', resize);
+    }
 
     function drawChart(){
+      if (!hasCanvas || !ctx) return;
       const width = canvas.width / dpr;
       const height = canvas.height / dpr;
       ctx.clearRect(0,0,width,height);
