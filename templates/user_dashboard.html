@@ -598,44 +598,56 @@
       .ports-table-wrap{
         overflow:visible;
       }
-      #ports-table{
-        min-width:0;
+      #ports-table,
+      #ports-table thead,
+      #ports-table tbody,
+      #ports-table th,
+      #ports-table td,
+      #ports-table tr{
+        display:block;
         width:100%;
       }
+      #ports-table{
+        min-width:0;
+      }
       #ports-table thead{
-        position:absolute;
-        clip-path:inset(0 0 100% 0);
+        border:0;
+        clip:rect(0 0 0 0);
         height:1px;
-        width:1px;
+        margin:-1px;
         overflow:hidden;
+        padding:0;
+        position:absolute;
+        width:1px;
       }
       #ports-table tbody tr{
-        display:flex;
-        flex-direction:column;
         border:1px solid rgba(255,255,255,.08);
         border-radius:16px;
-        margin-bottom:10px;
-        padding:8px 12px;
+        margin-bottom:12px;
+        padding:10px 12px;
         background:rgba(6,9,14,.95);
+        box-shadow:0 8px 20px rgba(0,0,0,.35);
       }
       #ports-table tbody tr td{
-        display:flex;
-        justify-content:space-between;
-        gap:16px;
         border:none;
         padding:6px 0;
-        font-size:.9rem;
+        font-size:.92rem;
       }
-      #ports-table tbody tr td:not([data-label]){
-        display:block;
+      #ports-table tbody tr td + td{
+        border-top:1px solid rgba(255,255,255,.05);
+        margin-top:6px;
+        padding-top:8px;
       }
-      #ports-table tbody tr td:last-child{
-        padding-bottom:0;
+      #ports-table tbody tr td[data-label]{
+        display:flex;
+        flex-direction:column;
+        gap:4px;
       }
       #ports-table tbody tr td[data-label]::before{
         content:attr(data-label);
         font-weight:700;
         color:var(--muted);
+        font-size:.85rem;
       }
       #ports-table tbody tr td[data-label="الإجراء"]{
         flex-direction:column;
