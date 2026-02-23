@@ -17,6 +17,9 @@ _started = False
 # ---- Defaults ----
 DEFAULT_INTERVAL_SEC = 4 * 60  # 4 minutes
 REL_STATUS_PATH = Path("keepalive") / "status.json"
+PULSE_SCALE = 0.8  # Send pings 20% sooner than configured interval
+MIN_INTERVAL_SEC = 30
+MAX_JITTER_SEC = 5
 
 
 def _utcnow_iso() -> str:
@@ -49,21 +52,26 @@ def _resolve_ping_urls() -> list[str]:
     """
     Order of preference:
       1) KEEP_ALIVE_URL          (explicit override)
-      2) RENDER_EXTERNAL_HOSTNAME (/login on public hostname)
-      3) 127.0.0.1:$PORT/login   (local fallback)
+      2) RENDER_EXTERNAL_URL     (Render public URL)
+      3) RENDER_EXTERNAL_HOSTNAME (Render public hostname)
+      4) 127.0.0.1:$PORT/login   (local fallback)
     """
     env_url = os.getenv("KEEP_ALIVE_URL", "").strip()
     urls = []
     if env_url:
         urls.append(env_url)
 
+    public_base = os.getenv("RENDER_EXTERNAL_URL", "").strip()
     host = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
-    if host:
+    if not public_base and host:
+        public_base = f"https://{host}"
+    if public_base:
+        public_base = public_base.rstrip("/")
         # Public URL keeps free instances awake
         urls.extend([
-            f"https://{host}/",
-            f"https://{host}/login",
-            f"https://{host}/dashboard"
+            f"{public_base}/",
+            f"{public_base}/login",
+            f"{public_base}/dashboard",
         ])
 
     port = os.getenv("PORT", "5000")
@@ -95,8 +103,18 @@ def _ping_once(url: str, timeout: float = 10.0) -> tuple[bool, int | None, str |
 
 
 def _loop(status_file: Path, interval_sec: int) -> None:
+    configured_interval_sec = max(1, int(interval_sec))
+    effective_interval_sec = max(
+        MIN_INTERVAL_SEC,
+        int(round(configured_interval_sec * PULSE_SCALE)),
+    )
     urls = _resolve_ping_urls()
-    print(f"[keep_alive] Started. Interval={interval_sec}s, URLs={urls}")
+    print(
+        "[keep_alive] Started. "
+        f"Configured interval={configured_interval_sec}s, "
+        f"effective pulse={effective_interval_sec}s, "
+        f"URLs={urls}"
+    )
     try:
         _write_json_atomic(status_file, {
             "ts": None,
@@ -104,7 +122,8 @@ def _loop(status_file: Path, interval_sec: int) -> None:
             "http_status": None,
             "url": urls[0] if urls else None,
             "urls": urls,
-            "interval_sec": int(interval_sec),
+            "interval_sec": int(effective_interval_sec),
+            "configured_interval_sec": int(configured_interval_sec),
             "error": None,
             "running": True,
             "last_success_url": None,
@@ -132,7 +151,8 @@ def _loop(status_file: Path, interval_sec: int) -> None:
                 "http_status": code,
                 "url": url,
                 "urls": urls,
-                "interval_sec": int(interval_sec),
+                "interval_sec": int(effective_interval_sec),
+                "configured_interval_sec": int(configured_interval_sec),
                 "error": err if not ok else None,
                 "running": True,
                 "last_success_url": last_success_url,
@@ -143,8 +163,8 @@ def _loop(status_file: Path, interval_sec: int) -> None:
             except Exception:
                 pass
             time.sleep(2)
-        jitter = max(30, int(interval_sec)) + int(os.urandom(1)[0] % 15)
-        time.sleep(jitter)
+        jitter = int(os.urandom(1)[0] % (MAX_JITTER_SEC + 1))
+        time.sleep(effective_interval_sec + jitter)
 
 
 def start_keep_alive(data_dir: str | Path, interval_sec: int = DEFAULT_INTERVAL_SEC) -> None:
@@ -189,6 +209,7 @@ def read_keepalive_status(data_dir: str | Path) -> dict:
         "last_success_url": doc.get("last_success_url"),
         "consecutive_failures": int(doc.get("consecutive_failures") or 0),
         "interval_sec": doc.get("interval_sec"),
+        "configured_interval_sec": doc.get("configured_interval_sec"),
         "error": doc.get("error"),
         "running": bool(doc.get("running")),
     }
