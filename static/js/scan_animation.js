@@ -21,6 +21,29 @@
     return meta ? (meta.getAttribute('content') || '') : '';
   }
 
+  function showScanOverlay() {
+    const overlay = UI.overlay;
+    if (overlay) {
+      overlay.style.setProperty('display', 'flex', 'important');
+      overlay.style.setProperty('visibility', 'visible', 'important');
+      overlay.style.setProperty('opacity', '1', 'important');
+      overlay.setAttribute('aria-hidden', 'false');
+    } else if (VM.progress && typeof VM.progress.show === 'function') {
+      VM.progress.show('جارٍ الفحص...', 'يتم تحليل المنافذ، يرجى الانتظار.');
+    }
+  }
+
+  function hideScanOverlay() {
+    const overlay = UI.overlay;
+    if (overlay) {
+      overlay.style.setProperty('display', 'none', 'important');
+      overlay.setAttribute('aria-hidden', 'true');
+    }
+    if (VM.progress && typeof VM.progress.hide === 'function') {
+      VM.progress.hide();
+    }
+  }
+
   // ---- Attach UI handlers ----
   function attachHandlers() {
     const btn  = UI.scanBtn;
@@ -44,7 +67,7 @@
     const btn = UI.scanBtn;
 
     // Overlay setup
-    if (overlay) overlay.style.display = 'flex';
+    showScanOverlay();
     if (btn) { btn.disabled = true; btn.classList.add('disabled'); }
     if (bar) bar.style.width = '0%';
     if (status) status.textContent = 'تهيئة محرك الاكتشاف...';
@@ -93,8 +116,11 @@
 
       if (elapsed < totalMs) {
         requestAnimationFrame(tick);
-      } else {
-        Promise.resolve(req).finally(() => {
+        return;
+      }
+
+      Promise.resolve(req).finally(() => {
+        try {
           const changed = (payload && payload.changed) ? payload.changed : 0;
 
           if (status) {
@@ -118,18 +144,28 @@
             bar.style.transition = 'width 0.4s ease-out';
             bar.style.width = '100%';
           }
-
-          // Close overlay smoothly
+        } catch (err) {
+          console.error('scan finalize failed', err);
+        } finally {
+          // Close overlay smoothly (always reset UI state).
           setTimeout(() => {
-            if (overlay) overlay.style.display = 'none';
+            hideScanOverlay();
             if (btn) { btn.disabled = false; btn.classList.remove('disabled'); }
             VM.state.scanInFlight = false;
           }, 900);
-        });
-      }
+        }
+      });
     }
 
     requestAnimationFrame(tick);
+
+    // Hard fail-safe: never leave scan lock stuck on client.
+    setTimeout(() => {
+      if (!VM.state.scanInFlight) return;
+      hideScanOverlay();
+      if (btn) { btn.disabled = false; btn.classList.remove('disabled'); }
+      VM.state.scanInFlight = false;
+    }, 30000);
   }
 
   // ---- Initialize ----

@@ -546,8 +546,9 @@
         font-size:.85rem;
       }
       .ports-toolbar{
-        flex-direction:column;
-        align-items:stretch;
+        flex-direction:row;
+        align-items:center;
+        justify-content:flex-start;
       }
       .wallet-panel{
         width:100%;
@@ -591,6 +592,7 @@
       }
       .ports-table-wrap{
         overflow:visible;
+        max-height:none;
       }
       #ports-table,
       #ports-table thead,
@@ -632,10 +634,12 @@
         margin-top:6px;
         padding-top:8px;
       }
-      #ports-table tbody tr td[data-label]{
+      #ports-table tbody tr td[data-label]:not([data-label="الإجراء"]){
         display:flex;
-        flex-direction:column;
-        gap:4px;
+        flex-direction:row;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
       }
       #ports-table tbody tr td[data-label]::before{
         content:attr(data-label);
@@ -648,12 +652,22 @@
         gap:10px;
       }
       #ports-table tbody tr td[data-label="الإجراء"] .row-actions{
-        flex-direction:column;
-        align-items:stretch;
+        flex-direction:row;
+        align-items:center;
+        flex-wrap:wrap;
+        gap:8px;
       }
-      #ports-table tbody tr td[data-label="الإجراء"] .btn,
       #ports-table tbody tr td[data-label="الإجراء"] form{
+        width:auto;
+        display:inline-flex;
+        margin:0;
+      }
+      #ports-table tbody tr td[data-label="الإجراء"] .btn{
+        width:auto;
+      }
+      #ports-table tbody tr td[data-label="الإجراء"] .mini-progress{
         width:100%;
+        flex-basis:100%;
       }
       .status-chip{
         justify-content:flex-end;
@@ -690,13 +704,14 @@
       .news-card{
         font-size:.9rem;
       }
-      .row-actions{
-        flex-direction:column;
-        align-items:stretch;
+      #ports-table .row-actions{
+        flex-direction:row;
+        align-items:center;
+        flex-wrap:wrap;
       }
-      .row-actions .btn,
-      .row-actions form{
-        width:100%;
+      #ports-table .row-actions .btn,
+      #ports-table .row-actions form{
+        width:auto;
       }
       .cluster-actions .btn{
         width:100%;
