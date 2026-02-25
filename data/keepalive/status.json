@@ -1,6 +1,16 @@
 {
-  "ts": "2025-10-08T18:50:37.138277+00:00",
-  "ok": true,
-  "http_status": 200,
-  "url": "http://127.0.0.1:5000/login"
+  "ts": "2026-02-25T22:20:20.651583+00:00",
+  "ok": false,
+  "http_status": null,
+  "url": "http://127.0.0.1:5000/",
+  "urls": [
+    "http://127.0.0.1:5000/",
+    "http://127.0.0.1:5000/login"
+  ],
+  "interval_sec": 288,
+  "configured_interval_sec": 360,
+  "error": "Error: <urlopen error [Errno 111] Connection refused>",
+  "running": true,
+  "last_success_url": null,
+  "consecutive_failures": 1
 }

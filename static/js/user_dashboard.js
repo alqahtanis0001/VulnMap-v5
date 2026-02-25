@@ -130,15 +130,16 @@
   // ---------- Row templating & rendering ----------
   function rowHtml(p, kind){
     const common =
-      `<td class="td-port">${p.port_number}</td>`+
-      `<td>—</td>`+
-      `<td class="td-reward">${formatReward(p.reward||0)}</td>`;
+      `<td class="td-port" data-label="المنفذ"><strong>${p.port_number}</strong></td>`+
+      `<td class="td-reward" data-label="المكافأة">${formatReward(p.reward||0)}</td>`;
 
     if (kind === 'discovered') {
       return `<tr data-row-id="${p.id}" data-status="discovered">
         ${common}
-        <td class="td-status">🟡 مكتشف</td>
-        <td>
+        <td class="td-status" data-label="الحالة">
+          <span class="status-chip status-chip--discovered"><span></span> مكتشف</span>
+        </td>
+        <td data-label="الإجراء">
           <div class="row-actions">
             <form class="resolve-form">
               <input type="hidden" name="port_id" value="${p.id}">
@@ -166,16 +167,20 @@
     if (kind === 'resolved') {
       return `<tr data-row-id="${p.id}" data-status="resolved">
         ${common}
-        <td class="td-status">✅ تم الحل</td>
-        <td><span class="small muted">—</span></td>
+        <td class="td-status" data-label="الحالة">
+          <span class="status-chip status-chip--resolved"><span></span> تم الحل</span>
+        </td>
+        <td data-label="الإجراء"><span class="small muted">—</span></td>
       </tr>`;
     }
 
     // archived
     return `<tr data-row-id="${p.id}" data-status="archived">
       ${common}
-      <td class="td-status">📦 مؤرشف</td>
-      <td>
+      <td class="td-status" data-label="الحالة">
+        <span class="status-chip status-chip--archived"><span></span> مؤرشف</span>
+      </td>
+      <td data-label="الإجراء">
         <form class="unarchive-form" style="display:inline-flex;gap:6px;align-items:center;">
           <input type="hidden" name="port_id" value="${p.id}">
           <button class="btn tertiary micro" type="button">استعادة</button>
@@ -188,7 +193,7 @@
     const body = document.getElementById('ports-body');
     if (!body) return;
     if ((!discovered || discovered.length===0) && (!resolved || resolved.length===0) && (!archived || archived.length===0)) {
-      body.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#999;">لا توجد منافذ ظاهرة حالياً — اضغط "فحص المنافذ".</td></tr>`;
+      body.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#999;">لا توجد منافذ ظاهرة حالياً — اضغط "فحص المنافذ".</td></tr>`;
       return;
     }
     let html = '';

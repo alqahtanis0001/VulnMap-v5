@@ -1404,12 +1404,13 @@ def news_search_status():
 def news_search_clear():
     jobs = _load_news_jobs_data()
     job = jobs.get(current_user.username)
-    if not job:
-        return jsonify({"ok": True, "job": None})
-    if job.get("status") == "in_progress":
+    if job and job.get("status") == "in_progress":
         return jsonify({"ok": False, "error": "job_running"}), 409
     jobs.pop(current_user.username, None)
     _save_news_jobs_data(jobs)
+    # User clear action must also remove the active backend hit so it does not
+    # show up again in future search runs until admin publishes a new one.
+    _clear_active_news_hit()
     return jsonify({"ok": True, "job": None})
 
 
