@@ -9,11 +9,6 @@
   const UI = VM.ui;
 
   function csrfToken(){
-    try {
-      if (typeof VM.csrfToken === 'function') {
-        return VM.csrfToken();
-      }
-    } catch (err) {}
     if (typeof window.getCsrfToken === 'function') {
       return window.getCsrfToken();
     }
@@ -27,6 +22,9 @@
       overlay.style.setProperty('display', 'flex', 'important');
       overlay.style.setProperty('visibility', 'visible', 'important');
       overlay.style.setProperty('opacity', '1', 'important');
+      overlay.style.setProperty('position', 'fixed', 'important');
+      overlay.style.setProperty('inset', '0', 'important');
+      overlay.style.setProperty('z-index', '2147483000', 'important');
       overlay.setAttribute('aria-hidden', 'false');
     } else if (VM.progress && typeof VM.progress.show === 'function') {
       VM.progress.show('جارٍ الفحص...', 'يتم تحليل المنافذ، يرجى الانتظار.');
@@ -65,10 +63,15 @@
 
     const overlay = UI.overlay, bar = UI.scanBar, status = UI.scanStatus;
     const btn = UI.scanBtn;
+    const btnLabel = btn ? btn.textContent : '';
 
     // Overlay setup
     showScanOverlay();
-    if (btn) { btn.disabled = true; btn.classList.add('disabled'); }
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('disabled');
+      btn.textContent = '⏳ جارٍ الفحص...';
+    }
     if (bar) bar.style.width = '0%';
     if (status) status.textContent = 'تهيئة محرك الاكتشاف...';
 
@@ -150,7 +153,11 @@
           // Close overlay smoothly (always reset UI state).
           setTimeout(() => {
             hideScanOverlay();
-            if (btn) { btn.disabled = false; btn.classList.remove('disabled'); }
+            if (btn) {
+              btn.disabled = false;
+              btn.classList.remove('disabled');
+              btn.textContent = btnLabel || '🔍 فحص المنافذ';
+            }
             VM.state.scanInFlight = false;
           }, 900);
         }
@@ -163,7 +170,11 @@
     setTimeout(() => {
       if (!VM.state.scanInFlight) return;
       hideScanOverlay();
-      if (btn) { btn.disabled = false; btn.classList.remove('disabled'); }
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('disabled');
+        btn.textContent = btnLabel || '🔍 فحص المنافذ';
+      }
       VM.state.scanInFlight = false;
     }, 30000);
   }

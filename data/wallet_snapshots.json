@@ -2,5 +2,13 @@
   "rayan": {
     "available_balance": 0.0,
     "total_earned": 0.0
+  },
+  "scan_test_tmp_user": {
+    "available_balance": 0.0,
+    "total_earned": 0.0
+  },
+  "scan_csrf_tmp_user": {
+    "available_balance": 0.0,
+    "total_earned": 0.0
   }
 }

@@ -115,11 +115,6 @@
   }
 
   function csrfToken(){
-    try {
-      if (window.VM && typeof window.VM.csrfToken === 'function') {
-        return window.VM.csrfToken();
-      }
-    } catch (err) {}
     if (typeof window.getCsrfToken === 'function') {
       return window.getCsrfToken();
     }
