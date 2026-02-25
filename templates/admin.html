@@ -153,14 +153,15 @@
 
 <br>
 
-<div class="card">
+<div class="card" id="admin-stats-card" data-stats-url="{{ url_for('admin_stats_json') }}">
   <h3>الإحصائيات</h3>
   <ul>
-    <li>إجمالي المنافذ: <strong>{{ total_ports }}</strong></li>
-    <li>مكتشف: <strong>{{ total_discovered }}</strong></li>
-    <li>محلول: <strong>{{ total_resolved }}</strong></li>
-    <li>غير محلول: <strong>{{ total_unresolved }}</strong></li>
+    <li>إجمالي المنافذ: <strong data-stat="ports">{{ total_ports }}</strong></li>
+    <li>مكتشف: <strong data-stat="discovered">{{ total_discovered }}</strong></li>
+    <li>محلول: <strong data-stat="resolved">{{ total_resolved }}</strong></li>
+    <li>غير محلول: <strong data-stat="unresolved">{{ total_unresolved }}</strong></li>
   </ul>
+  <div class="small muted" data-stats-updated style="margin-top:8px;">تحديث مباشر كل ثانيتين.</div>
 </div>
 
 <br>
@@ -816,7 +817,72 @@
     render(false); // remove cursor line
   });
 
-  if (window.VM && VM.progress) VM.progress.hide();
+if (window.VM && VM.progress) VM.progress.hide();
+})();
+</script>
+
+<script>
+(function () {
+  const card = document.getElementById('admin-stats-card');
+  if (!card) return;
+
+  const url = card.dataset.statsUrl || '';
+  if (!url) return;
+
+  const statEls = {
+    ports: card.querySelector('[data-stat="ports"]'),
+    discovered: card.querySelector('[data-stat="discovered"]'),
+    resolved: card.querySelector('[data-stat="resolved"]'),
+    unresolved: card.querySelector('[data-stat="unresolved"]')
+  };
+  const updatedEl = card.querySelector('[data-stats-updated]');
+  let inflight = false;
+
+  function setUpdatedTime() {
+    if (!updatedEl) return;
+    try {
+      const t = new Date().toLocaleTimeString('ar-SA', { hour12: false });
+      updatedEl.textContent = 'آخر تحديث: ' + t;
+    } catch (err) {
+      updatedEl.textContent = 'آخر تحديث: الآن';
+    }
+  }
+
+  async function refreshStats() {
+    if (inflight) return;
+    inflight = true;
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' }
+      });
+      if (!res.ok) return;
+      const body = await res.json();
+      if (!body || !body.ok || !body.totals) return;
+
+      Object.keys(statEls).forEach((k) => {
+        if (statEls[k]) statEls[k].textContent = String(body.totals[k] ?? 0);
+      });
+      setUpdatedTime();
+    } catch (err) {
+      // keep silent to avoid noisy admin UI
+    } finally {
+      inflight = false;
+    }
+  }
+
+  refreshStats();
+  const timer = setInterval(refreshStats, 2000);
+
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) refreshStats();
+  });
+
+  window.addEventListener('beforeunload', function () {
+    clearInterval(timer);
+  }, { once: true });
 })();
 </script>
 

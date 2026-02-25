@@ -1900,6 +1900,26 @@ def admin_metrics_json():
     return jsonify(_collect_metrics())
 
 
+@app.get("/admin/stats.json")
+@login_required
+def admin_stats_json():
+    if not getattr(current_user, "is_admin", False):
+        abort(403)
+    stats = admin_stats_view()
+    totals = stats.get("totals") or {}
+    return jsonify({
+        "ok": True,
+        "ts": _utcnow_iso(),
+        "totals": {
+            "ports": int(totals.get("ports") or 0),
+            "discovered": int(totals.get("discovered") or 0),
+            "resolved": int(totals.get("resolved") or 0),
+            "unresolved": int(totals.get("unresolved") or 0),
+        },
+        "pending_withdrawals": int(count_pending() or 0),
+    })
+
+
 @app.get("/metrics.json")
 @login_required
 def user_metrics_json():
