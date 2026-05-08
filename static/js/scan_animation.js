@@ -7,9 +7,16 @@
 
   const EP = VM.endpoints;
   const UI = VM.ui;
-  const RESULT_WAIT_AFTER_VISUAL_MS = 2500;
+  // Manual scan-window timing control lives here.
+  // The scan/search window stays open for this exact duration before any result can appear.
+  const SCAN_WINDOW_DURATION_MS = 12000;
+  // Optional random extra time. Keep 0 when you want the duration to be exact.
+  const SCAN_WINDOW_RANDOM_EXTRA_MS = 0;
+  // If the backend is still not done after the visual window finishes, wait this long before showing an error.
+  const SCAN_BACKEND_GRACE_MS = 10000;
   const RESULT_POPUP_DELAY_MS = 260;
   const SCAN_FETCH_TIMEOUT_MS = 25000;
+  const SCAN_HARD_STOP_BUFFER_MS = 5000;
 
   function clearScanTimer(name) {
     if (!VM.state) return;
@@ -25,6 +32,7 @@
     clearScanTimer('scanCloseTimer');
     clearScanTimer('scanFailSafeTimer');
     clearScanTimer('scanRequestTimer');
+    clearScanTimer('scanVisualTimer');
     clearScanTimer('scanResultWaitTimer');
     clearScanTimer('scanResultTimer');
     VM.state.scanRunId = (VM.state.scanRunId || 0) + 1;
@@ -74,82 +82,31 @@
     }
   }
 
-  function ensureResultStyles() {
-    if (document.getElementById('scan-result-style')) return;
-    const style = document.createElement('style');
-    style.id = 'scan-result-style';
-    style.textContent = `
-      #scan-result-modal[aria-hidden="true"]{display:none}
-      #scan-result-modal{
-        position:fixed;inset:0;z-index:2147483001;
-        display:flex;align-items:center;justify-content:center;
-        padding:20px;background:rgba(0,0,0,.58);backdrop-filter:blur(5px);
-      }
-      .scan-result-card{
-        width:min(430px,92vw);background:#111722;color:#eef4ff;
-        border:1px solid rgba(122,173,255,.22);border-radius:18px;
-        padding:22px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45);
-      }
-      .scan-result-mark{
-        width:54px;height:54px;margin:0 auto 14px;border-radius:999px;
-        display:grid;place-items:center;font-size:1.75rem;font-weight:900;
-        background:rgba(79,214,145,.14);color:#6fffc3;border:1px solid rgba(111,255,195,.32);
-      }
-      .scan-result-mark.is-empty{background:rgba(122,173,255,.14);color:#9fc4ff;border-color:rgba(122,173,255,.32)}
-      .scan-result-mark.is-error{background:rgba(255,107,107,.14);color:#ff9b9b;border-color:rgba(255,107,107,.34)}
-      .scan-result-title{margin:0 0 8px;font-size:1.2rem;line-height:1.35}
-      .scan-result-body{margin:0;color:#b8c5d6;line-height:1.7}
-      .scan-result-actions{margin-top:18px;display:flex;justify-content:center}
-      .scan-result-close{
-        min-width:120px;border:1px solid #2a6fff;background:#2a6fff;color:#fff;
-        border-radius:12px;padding:9px 16px;font-weight:800;cursor:pointer;
-      }
-      .scan-result-close:hover{filter:brightness(1.06)}
-    `;
-    document.head.appendChild(style);
+  function scanWindowDurationMs() {
+    const baseMs = Math.max(0, Number(SCAN_WINDOW_DURATION_MS) || 0);
+    const extraMs = Math.max(0, Number(SCAN_WINDOW_RANDOM_EXTRA_MS) || 0);
+    return baseMs + (extraMs ? Math.floor(Math.random() * (extraMs + 1)) : 0);
   }
 
-  function ensureResultModal() {
-    let modal = document.getElementById('scan-result-modal');
-    if (modal) return modal;
+  function resultModal() {
+    return document.getElementById('scan-result-overlay');
+  }
 
-    ensureResultStyles();
-    modal = document.createElement('div');
-    modal.id = 'scan-result-modal';
-    modal.setAttribute('aria-hidden', 'true');
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('dir', 'rtl');
-    modal.innerHTML = `
-      <div class="scan-result-card" role="document">
-        <div class="scan-result-mark" data-role="scan-result-mark">✓</div>
-        <h3 class="scan-result-title" data-role="scan-result-title"></h3>
-        <p class="scan-result-body" data-role="scan-result-body"></p>
-        <div class="scan-result-actions">
-          <button class="scan-result-close" type="button" data-role="scan-result-close">حسناً</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(modal);
-
-    const close = () => modal.setAttribute('aria-hidden', 'true');
-    modal.querySelector('[data-role="scan-result-close"]').addEventListener('click', close);
-    modal.addEventListener('click', e => {
-      if (e.target === modal) close();
-    });
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') close();
-    });
-
-    return modal;
+  function closeScanResult() {
+    const modal = resultModal();
+    if (modal) modal.setAttribute('aria-hidden', 'true');
   }
 
   function showScanResult(payload) {
-    const modal = ensureResultModal();
-    const mark = modal.querySelector('[data-role="scan-result-mark"]');
-    const title = modal.querySelector('[data-role="scan-result-title"]');
-    const body = modal.querySelector('[data-role="scan-result-body"]');
+    const modal = resultModal();
+    if (!modal) return;
+
+    const mark = document.getElementById('scan-result-mark');
+    const title = document.getElementById('scan-result-title');
+    const body = document.getElementById('scan-result-body');
+    const closeBtn = document.getElementById('scan-result-close');
     const changed = Number(payload && payload.changed || 0);
+    if (!mark || !title || !body) return;
 
     mark.classList.remove('is-empty', 'is-error');
     if (payload && payload.ok) {
@@ -170,11 +127,27 @@
     }
 
     modal.setAttribute('aria-hidden', 'false');
-    const closeBtn = modal.querySelector('[data-role="scan-result-close"]');
     if (closeBtn) {
       try { closeBtn.focus({ preventScroll: true }); }
       catch (err) { closeBtn.focus(); }
     }
+  }
+
+  function attachResultHandlers() {
+    const modal = resultModal();
+    if (!modal || modal._vmBound) return;
+
+    const closeBtn = document.getElementById('scan-result-close');
+    if (closeBtn) closeBtn.addEventListener('click', closeScanResult);
+    modal.addEventListener('click', e => {
+      if (e.target === modal) closeScanResult();
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') {
+        closeScanResult();
+      }
+    });
+    modal._vmBound = true;
   }
 
   function resetScanUi(runId, btn, btnLabel) {
@@ -183,6 +156,7 @@
     clearScanTimer('scanCloseTimer');
     clearScanTimer('scanFailSafeTimer');
     clearScanTimer('scanRequestTimer');
+    clearScanTimer('scanVisualTimer');
     clearScanTimer('scanResultWaitTimer');
     clearScanTimer('scanResultTimer');
     hideScanOverlay();
@@ -205,6 +179,8 @@
 
   // ---- Attach UI handlers ----
   function attachHandlers() {
+    attachResultHandlers();
+
     const btn  = UI.scanBtn;
     const form = UI.scanForm;
     if (btn && !btn._vmBound) {
@@ -222,6 +198,7 @@
     VM.state = VM.state || {};
     if (VM.state.scanInFlight) return;
     const runId = beginScanRun();
+    closeScanResult();
 
     const overlay = UI.overlay, bar = UI.scanBar, status = UI.scanStatus;
     const btn = UI.scanBtn;
@@ -244,8 +221,7 @@
     }
     if (status) status.textContent = 'تهيئة محرك الاكتشاف...';
 
-    // Minimum visible scan time before showing the result dialog.
-    const totalMs = 12400 + Math.floor(Math.random() * 5800);
+    const totalMs = scanWindowDurationMs();
     const start = performance.now();
 
     // Step messages (Arabic)
