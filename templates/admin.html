@@ -166,6 +166,28 @@
 
 <br>
 
+{% set collector_cfg = collector_settings or {} %}
+<div class="card">
+  <h3>إعدادات المجمع</h3>
+  <form method="post" action="{{ url_for('admin_collector_settings') }}" class="admin-form admin-form--auto">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label>مدة بقاء المنافذ عند تشغيل المجمع (بالدقائق)</label>
+      <input type="number"
+             name="timeout_minutes"
+             min="1"
+             step="1"
+             value="{{ collector_cfg.timeout_minutes or 30 }}"
+             required>
+    </div>
+    <div style="display:flex;align-items:flex-end;">
+      <button class="btn" type="submit">حفظ مدة المجمع</button>
+    </div>
+  </form>
+</div>
+
+<br>
+
 <div class="card">
   <h3>أخبار الضربات الكبيرة</h3>
   <p class="small muted">انشر التوقيت الدقيق للضربة التالية ليظهر للمستخدم عبر زر "البحث عن أخبار".</p>

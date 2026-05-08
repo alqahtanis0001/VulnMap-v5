@@ -43,6 +43,9 @@ from port_logic import (
     unarchive_port,
     admin_stats_view,
     clear_wallet_snapshot,
+    get_collector_settings,
+    set_collector_timeout_minutes,
+    set_collector_enabled,
 )
 
 from admin.withdraw_requests import bp as withdraw_bp  # NEW
@@ -1031,7 +1034,8 @@ def create_app() -> Flask:
             resolved_count=len(resolved_v),
             available_balance=vm["wallet"]["available_balance"],
             total_earned=vm["wallet"]["total_earned"],
-             withdrawals=vm.get("withdrawals"),
+            withdrawals=vm.get("withdrawals"),
+            collector=vm.get("collector"),
             news_job=_serialized_news_job_for(current_user.username),
             news_hit=_format_hit_for_view(_get_active_news_hit()),
             login_event_id=session.get("last_login_event_id"),
@@ -1112,8 +1116,9 @@ def create_app() -> Flask:
             pending_withdrawals=pending_w,  # NEW
             keepalive_status=ka_status,   # <-- ADD THIS
             news_hit=_format_hit_for_view(_get_active_news_hit()),
-             scheduled_jobs=scheduled_jobs,
-             scheduled_run_at_default=default_run_at,
+            collector_settings=get_collector_settings(),
+            scheduled_jobs=scheduled_jobs,
+            scheduled_run_at_default=default_run_at,
 
         )
 
@@ -1164,6 +1169,18 @@ def admin_reset_balance(username):
     except Exception as e:
         flash(f"فشل التصفير: {e}", "err")
 
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.post("/admin/collector-settings")
+@login_required
+def admin_collector_settings():
+    if not getattr(current_user, "is_admin", False):
+        abort(403)
+
+    minutes_raw = (request.form.get("timeout_minutes") or "").strip()
+    settings = set_collector_timeout_minutes(minutes_raw)
+    flash(f"تم تحديث مدة المجمع إلى {settings['timeout_minutes']} دقيقة.", "ok")
     return redirect(url_for("admin_dashboard"))
 
 
@@ -1314,10 +1331,26 @@ def user_scan_json():
         "resolved": resolved,
         "archived": archived,
         "counts": {
+            "assigned": len(vm["assigned"]),
             "discovered": len(discovered),
             "resolved": len(resolved),
         },
         "wallet": vm["wallet"],
+    })
+
+
+@app.route("/collector.json", methods=["POST"])
+@login_required
+def user_collector_json():
+    data = request.get_json(silent=True) or {}
+    enabled = bool(data.get("enabled"))
+    collector = set_collector_enabled(current_user.username, enabled)
+    vm = user_dashboard_view(current_user.username)
+
+    return jsonify({
+        "ok": True,
+        "collector": collector,
+        "counts": vm["counts"],
     })
 
 
@@ -1369,7 +1402,7 @@ def user_withdraw_json():
     return jsonify({
         "ok": True,
         "request": rec,
-        "counts": {"discovered": len(vm_after["discovered"]), "resolved": len(vm_after["resolved"])},
+        "counts": vm_after["counts"],
         "wallet": vm_after["wallet"],
         "withdrawals": vm_after.get("withdrawals"),
     }), 200
@@ -1455,7 +1488,7 @@ def user_resolve_json():
             "ok": bool(result.get("ok")),
             "error": result.get("error"),
             "port_id": pid,
-            "counts": {"discovered": len(vm["discovered"]), "resolved": len(vm["resolved"])},
+            "counts": vm["counts"],
             "wallet": vm["wallet"]
         })
     except Exception as e:
@@ -1491,7 +1524,7 @@ def user_archive_json():
         "discovered": discovered,
         "resolved": resolved,
         "archived": archived,
-        "counts": {"discovered": len(discovered), "resolved": len(resolved)},
+        "counts": vm["counts"],
         "wallet": vm["wallet"]
     }), (200 if result.get("ok") else 400)
 
@@ -1518,7 +1551,7 @@ def user_unarchive_json():
         "discovered": discovered,
         "resolved": resolved,
         "archived": archived,
-        "counts": {"discovered": len(discovered), "resolved": len(resolved)},
+        "counts": vm["counts"],
         "wallet": vm["wallet"]
     }), status_code
 

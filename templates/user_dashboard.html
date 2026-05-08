@@ -349,6 +349,78 @@
       font-weight:700;
       margin-bottom:6px;
     }
+    .scan-control-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .scan-control-row #scan-form,
+    .collector-form{
+      margin:0;
+    }
+    .collector-toggle{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      min-height:38px;
+      padding:6px 8px 6px 10px;
+      border:1px solid rgba(255,255,255,.08);
+      border-radius:12px;
+      background:rgba(15,22,32,.86);
+      color:var(--text);
+      cursor:pointer;
+      user-select:none;
+    }
+    .collector-toggle input{
+      position:absolute;
+      opacity:0;
+      pointer-events:none;
+    }
+    .collector-name{
+      font-weight:800;
+      line-height:1;
+    }
+    .collector-switch{
+      position:relative;
+      width:46px;
+      height:24px;
+      flex:0 0 46px;
+      border-radius:999px;
+      border:1px solid #5b3e33;
+      background:#2a2320;
+      transition:background .18s ease, border-color .18s ease, opacity .18s ease;
+    }
+    .collector-switch::after{
+      content:"";
+      position:absolute;
+      top:3px;
+      left:3px;
+      width:16px;
+      height:16px;
+      border-radius:50%;
+      background:#f4d6c5;
+      box-shadow:0 2px 8px rgba(0,0,0,.35);
+      transition:transform .18s ease, background .18s ease;
+    }
+    .collector-toggle input:checked + .collector-switch{
+      border-color:#254a35;
+      background:#1a2a20;
+    }
+    .collector-toggle input:checked + .collector-switch::after{
+      transform:translateX(22px);
+      background:#6fffc3;
+    }
+    .collector-toggle input:disabled + .collector-switch{
+      opacity:.55;
+    }
+    .collector-state{
+      min-width:42px;
+      color:var(--muted);
+      font-size:.82rem;
+      font-weight:700;
+      text-align:center;
+    }
     .news-card h3{
       margin:0 0 4px;
     }
@@ -824,6 +896,13 @@
       .cluster-actions .btn{
         width:100%;
       }
+      .scan-control-row{
+        flex-direction:column;
+        align-items:stretch;
+      }
+      .collector-toggle{
+        justify-content:space-between;
+      }
     }
   </style>
 {% endblock %}
@@ -854,7 +933,7 @@
       </div>
       <div class="hero-metrics">
         <div class="stat-row">
-          <span class="stat-chip stat-chip--assigned">📦 المسندة: <strong>{{ undiscovered_count }}</strong></span>
+          <span class="stat-chip stat-chip--assigned">📦 المسندة: <strong data-assigned-count>{{ undiscovered_count }}</strong></span>
           <span class="stat-chip stat-chip--discovered">🟡 المكتشفة: <strong>{{ clean_counts.discovered }}</strong></span>
           <span class="stat-chip stat-chip--resolved">✅ المحلولة: <strong>{{ clean_counts.resolved }}</strong></span>
         </div>
@@ -1031,11 +1110,28 @@
 
           <div class="action-block">
             <label>فحص المنافذ</label>
-            <form id="scan-form">
-              <button id="scan-btn" class="btn" type="button">
-                🔍 فحص المنافذ
-              </button>
-            </form>
+            {% set collector_info = collector or {} %}
+            <div class="scan-control-row">
+              <form id="scan-form">
+                <button id="scan-btn" class="btn" type="button">
+                  🔍 فحص المنافذ
+                </button>
+              </form>
+              <form id="collector-form" class="collector-form">
+                <label class="collector-toggle" for="collector-toggle">
+                  <span class="collector-name">المجمع</span>
+                  <input id="collector-toggle"
+                         type="checkbox"
+                         role="switch"
+                         aria-label="المجمع"
+                         {% if collector_info.enabled %}checked{% endif %}>
+                  <span class="collector-switch" aria-hidden="true"></span>
+                  <span id="collector-state" class="collector-state">
+                    {% if collector_info.enabled %}تشغيل{% else %}إيقاف{% endif %}
+                  </span>
+                </label>
+              </form>
+            </div>
           </div>
 
           <div class="action-block">
@@ -1150,6 +1246,7 @@
 <!-- Endpoint wiring for static JS files -->
 <div id="app-endpoints"
      data-scan-json="{{ url_for('user_scan_json') }}"
+     data-collector-json="{{ url_for('user_collector_json') }}"
      data-resolve-json="{{ url_for('user_resolve_json') }}"
      data-withdraw-json="{{ url_for('user_withdraw_json') }}"
      data-archive-json="{{ url_for('user_archive_json') }}"
@@ -1166,7 +1263,7 @@
 
 {% block scripts %}
   <!-- Load base first (defines window.VM helpers/state), then features that attach onto VM -->
-  <script src="{{ url_for('static', filename='js/user_dashboard.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/user_dashboard.js', v='collector-toggle-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/resolve_ports.js') }}"></script>
   <script src="{{ url_for('static', filename='js/scan_animation.js', v='scan-state-machine-v4') }}"></script>
   <script src="{{ url_for('static', filename='js/news_search.js') }}"></script>

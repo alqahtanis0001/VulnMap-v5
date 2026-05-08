@@ -30,6 +30,9 @@ USERS_FILE = DATA_DIR / "users.json"
 WALLET_SNAPSHOT_FILE = DATA_DIR / "wallet_snapshots.json"
 WALLET_EPSILON = 0.01
 DISCOVERY_TIMEOUT_SECONDS = 5 * 60  # 5 minutes to discover assigned ports
+COLLECTOR_SETTINGS_FILE = DATA_DIR / "ports" / "collector_settings.json"
+COLLECTOR_USERS_FILE = DATA_DIR / "ports" / "collector_users.json"
+COLLECTOR_DEFAULT_TIMEOUT_MINUTES = 30
 
 WITHDRAW_STATUS_META = {
     "pending": ("قيد المراجعة", "neutral"),
@@ -114,6 +117,75 @@ def _delete_port_file(pid: str) -> None:
         pass
 
 
+def _clean_username(username: str) -> str:
+    return (username or "").strip().lower()
+
+
+def _normalize_collector_minutes(value) -> int:
+    try:
+        minutes = int(value)
+    except Exception:
+        minutes = COLLECTOR_DEFAULT_TIMEOUT_MINUTES
+    return max(1, minutes)
+
+
+def get_collector_settings() -> Dict[str, int]:
+    data = _read_json(COLLECTOR_SETTINGS_FILE, {})
+    if not isinstance(data, dict):
+        data = {}
+    return {
+        "timeout_minutes": _normalize_collector_minutes(
+            data.get("timeout_minutes", COLLECTOR_DEFAULT_TIMEOUT_MINUTES)
+        )
+    }
+
+
+def set_collector_timeout_minutes(minutes) -> Dict[str, int]:
+    settings = {"timeout_minutes": _normalize_collector_minutes(minutes)}
+    _write_json_atomic(COLLECTOR_SETTINGS_FILE, settings)
+    return settings
+
+
+def _read_collector_users() -> Dict[str, Dict[str, bool]]:
+    data = _read_json(COLLECTOR_USERS_FILE, {})
+    return data if isinstance(data, dict) else {}
+
+
+def is_collector_enabled(username: str) -> bool:
+    uname = _clean_username(username)
+    if not uname:
+        return False
+    item = _read_collector_users().get(uname, {})
+    return bool(item.get("enabled")) if isinstance(item, dict) else bool(item)
+
+
+def set_collector_enabled(username: str, enabled: bool) -> Dict:
+    uname = _clean_username(username)
+    users = _read_collector_users()
+    if uname:
+        users[uname] = {
+            "enabled": bool(enabled),
+            "updated_at": _utcnow_iso(),
+        }
+        _write_json_atomic(COLLECTOR_USERS_FILE, users)
+    return get_collector_status(uname)
+
+
+def assigned_discovery_timeout_seconds(username: str) -> int:
+    if is_collector_enabled(username):
+        return get_collector_settings()["timeout_minutes"] * 60
+    return DISCOVERY_TIMEOUT_SECONDS
+
+
+def get_collector_status(username: str) -> Dict:
+    settings = get_collector_settings()
+    return {
+        "enabled": is_collector_enabled(username),
+        "timeout_minutes": settings["timeout_minutes"],
+        "default_timeout_minutes": DISCOVERY_TIMEOUT_SECONDS // 60,
+    }
+
+
 def _port_is_past_discovery_deadline(port: "Port", now: Optional[datetime] = None) -> bool:
     if not port or port.status != "assigned":
         return False
@@ -121,7 +193,8 @@ def _port_is_past_discovery_deadline(port: "Port", now: Optional[datetime] = Non
     if not created:
         return False
     now = now or datetime.now(timezone.utc)
-    return (now - created) >= timedelta(seconds=DISCOVERY_TIMEOUT_SECONDS)
+    timeout_seconds = assigned_discovery_timeout_seconds(port.owner)
+    return (now - created) >= timedelta(seconds=timeout_seconds)
 
 
 def _sanitize_wallet_dict(wallet: Dict[str, float]) -> Dict[str, float]:
@@ -624,6 +697,7 @@ def user_dashboard_view(username: str) -> Dict:
             "resolved": len(resolved),
             "archived": len(archived),
         },
+        "collector": get_collector_status(username),
         "wallet": wallet,
         "withdrawals": withdrawals,
     }

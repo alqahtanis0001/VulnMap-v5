@@ -7,6 +7,7 @@
       console.error('app-endpoints element missing');
       return {
         scanJson: '/scan.json',
+      collectorJson: '/collector.json',
       resolveJson: '/resolve.json',
       archiveJson: '/archive.json',
       unarchiveJson: '/unarchive.json',
@@ -23,6 +24,7 @@
   }
   return {
     scanJson: el.dataset.scanJson || '/scan.json',
+    collectorJson: el.dataset.collectorJson || '/collector.json',
     resolveJson: el.dataset.resolveJson || '/resolve.json',
       archiveJson: el.dataset.archiveJson || '/archive.json',
       unarchiveJson: el.dataset.unarchiveJson || '/unarchive.json',
@@ -61,6 +63,13 @@
     const hdr = document.getElementById('hdr-counts');
     if(!hdr) return;
     hdr.textContent = `لوحة التحكم — المنافذ المكتشفة: ${discovered} | المحلولة: ${resolved}`;
+  }
+
+  function updateAssignedCount(assigned){
+    const el = document.querySelector('[data-assigned-count]');
+    if (el && assigned !== undefined && assigned !== null) {
+      el.textContent = String(assigned);
+    }
   }
 
   function updateWallet(wallet){
@@ -235,7 +244,10 @@
     },
     updateCountsWallet(payload){
       if (!payload) return;
-      if (payload.counts) updateHeaderCounts(payload.counts.discovered, payload.counts.resolved);
+      if (payload.counts) {
+        updateHeaderCounts(payload.counts.discovered, payload.counts.resolved);
+        updateAssignedCount(payload.counts.assigned);
+      }
       if (payload.wallet) updateWallet(payload.wallet);
     },
     updateWithdrawals(summary){
@@ -481,6 +493,54 @@
     }
 
     syncTelemetry();
+  })();
+
+  // --- Collector switch ---
+  (function attachCollectorHandler(){
+    const toggle = document.getElementById('collector-toggle');
+    const state = document.getElementById('collector-state');
+    if (!toggle || !window.VM || !VM.endpoints || !VM.endpoints.collectorJson) return;
+
+    let lastChecked = !!toggle.checked;
+
+    function renderState(){
+      if (state) state.textContent = toggle.checked ? 'تشغيل' : 'إيقاف';
+      toggle.setAttribute('aria-checked', toggle.checked ? 'true' : 'false');
+    }
+
+    renderState();
+
+    toggle.addEventListener('change', function(){
+      const desired = !!toggle.checked;
+      toggle.disabled = true;
+      renderState();
+
+      fetch(VM.endpoints.collectorJson, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'fetch',
+          'X-CSRFToken': csrfToken()
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({ enabled: desired })
+      })
+      .then(r => r.json().then(j => ({ status: r.status, body: j })))
+      .then(({ status, body }) => {
+        if (status !== 200 || !body || !body.ok) throw new Error('collector_update_failed');
+        toggle.checked = !!(body.collector && body.collector.enabled);
+        lastChecked = toggle.checked;
+        if (body.counts) updateAssignedCount(body.counts.assigned);
+        renderState();
+      })
+      .catch(() => {
+        toggle.checked = lastChecked;
+        renderState();
+      })
+      .finally(() => {
+        toggle.disabled = false;
+      });
+    });
   })();
 
   // --- Withdraw (no reload) ---
