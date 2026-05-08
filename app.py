@@ -1269,6 +1269,22 @@ def admin_repair_start():
     return redirect(url_for("admin_dashboard"))
 
 
+@app.post("/admin/repair/start.json")
+@login_required
+def admin_repair_start_json():
+    if not getattr(current_user, "is_admin", False):
+        return jsonify({"ok": False, "error": "forbidden"}), 403
+
+    data = request.get_json(silent=True) or {}
+    minutes_raw = data.get("duration_minutes")
+    state = _start_repair_mode(minutes_raw, current_user.username)
+    return jsonify({
+        "ok": True,
+        "repair": state,
+        "redirect": url_for("admin_dashboard"),
+    })
+
+
 @app.post("/admin/repair/cancel")
 @login_required
 def admin_repair_cancel():

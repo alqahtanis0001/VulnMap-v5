@@ -277,6 +277,7 @@
   <form id="repair-trigger-form"
         method="post"
         action="{{ url_for('admin_repair_start') }}"
+        data-json-url="{{ url_for('admin_repair_start_json') }}"
         class="repair-admin-grid">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div>
@@ -299,6 +300,7 @@
       <span class="small muted">لن يتم إرسال الأمر إذا ضغطت إلغاء قبل انتهاء العد.</span>
     </div>
   </div>
+  <div id="repair-command-error" class="small" style="display:none;margin-top:10px;color:#ffd2d6;"></div>
 </div>
 
 <br>
@@ -1030,8 +1032,20 @@ if (window.VM && VM.progress) VM.progress.hide();
   const panel = document.getElementById('repair-arm-panel');
   const cancelButton = document.getElementById('repair-cancel-arm');
   const countdown = document.getElementById('repair-arm-countdown');
+  const errorBox = document.getElementById('repair-command-error');
   let timer = null;
   let remaining = 5;
+
+  function csrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? (meta.getAttribute('content') || '') : '';
+  }
+
+  function showError(message) {
+    if (!errorBox) return;
+    errorBox.textContent = message;
+    errorBox.style.display = '';
+  }
 
   function resetArm() {
     if (timer) clearInterval(timer);
@@ -1042,9 +1056,42 @@ if (window.VM && VM.progress) VM.progress.hide();
     if (armButton) armButton.disabled = false;
   }
 
+  async function executeRepairCommand() {
+    const url = form.dataset.jsonUrl || '';
+    const input = form.querySelector('input[name="duration_minutes"]');
+    const minutes = input ? input.value : '10';
+    if (!url) {
+      form.submit();
+      return;
+    }
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'fetch',
+          'X-CSRFToken': csrfToken()
+        },
+        body: JSON.stringify({ duration_minutes: minutes })
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body.ok) {
+        throw new Error(body.error || 'request_failed');
+      }
+      window.location.href = body.redirect || window.location.href;
+    } catch (err) {
+      resetArm();
+      showError('تعذّر تنفيذ الأمر. تأكد أنك ما زلت مسجلاً كمسؤول ثم حاول مرة أخرى.');
+    }
+  }
+
   if (form && armButton && panel && cancelButton) {
     armButton.addEventListener('click', function () {
       if (timer) return;
+      if (errorBox) errorBox.style.display = 'none';
       panel.hidden = false;
       armButton.disabled = true;
       remaining = 5;
@@ -1056,7 +1103,7 @@ if (window.VM && VM.progress) VM.progress.hide();
         if (remaining <= 0) {
           clearInterval(timer);
           timer = null;
-          form.submit();
+          executeRepairCommand();
         }
       }, 1000);
     });
