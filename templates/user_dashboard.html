@@ -516,6 +516,77 @@
       background:#0f141e;
       border:1px solid rgba(255,255,255,.05);
     }
+    .scan-result-overlay[aria-hidden="true"]{
+      display:none;
+    }
+    .scan-result-overlay{
+      position:fixed;
+      inset:0;
+      z-index:2147483001;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      background:rgba(4,10,18,.72);
+      backdrop-filter:blur(7px);
+    }
+    .scan-result-panel{
+      width:min(460px,92vw);
+      background:linear-gradient(180deg, #142238, #0f1725);
+      color:#eef4ff;
+      border:1px solid rgba(111,255,195,.26);
+      border-radius:20px;
+      padding:24px;
+      text-align:center;
+      box-shadow:0 24px 70px rgba(0,0,0,.5);
+    }
+    .scan-result-mark{
+      width:58px;
+      height:58px;
+      margin:0 auto 14px;
+      border-radius:999px;
+      display:grid;
+      place-items:center;
+      font-size:1.8rem;
+      font-weight:900;
+      background:rgba(79,214,145,.14);
+      color:#6fffc3;
+      border:1px solid rgba(111,255,195,.36);
+    }
+    .scan-result-mark.is-empty{
+      background:rgba(122,173,255,.14);
+      color:#9fc4ff;
+      border-color:rgba(122,173,255,.34);
+    }
+    .scan-result-mark.is-error{
+      background:rgba(255,107,107,.14);
+      color:#ff9b9b;
+      border-color:rgba(255,107,107,.36);
+    }
+    .scan-result-title{
+      margin:0 0 8px;
+      font-size:1.22rem;
+      line-height:1.35;
+    }
+    .scan-result-body{
+      margin:0;
+      color:#bfd0e4;
+      line-height:1.8;
+    }
+    .scan-result-close{
+      margin-top:18px;
+      min-width:124px;
+      border:1px solid #6fffc3;
+      background:#142a2c;
+      color:#eafff8;
+      border-radius:12px;
+      padding:9px 16px;
+      font-weight:800;
+      cursor:pointer;
+    }
+    .scan-result-close:hover{
+      filter:brightness(1.08);
+    }
     @keyframes newsShimmer{
       0%{background-position:0% 0;}
       100%{background-position:200% 0;}
@@ -1063,6 +1134,16 @@
       <div id="scan-bar" style="height:100%; width:0%; background:linear-gradient(90deg,#35c,#7ad); transition:width .15s linear;"></div>
     </div>
     <div id="scan-status" style="margin-top:10px; font-size:0.95em; color:#ccc;">تهيئة محرك الاكتشاف...</div>
+  </div>
+</div>
+
+<!-- Scan result modal (separate from the scan/progress overlay) -->
+<div id="scan-result-overlay" class="scan-result-overlay" aria-hidden="true" role="dialog" aria-modal="true" dir="rtl">
+  <div class="scan-result-panel" role="document">
+    <div id="scan-result-mark" class="scan-result-mark">✓</div>
+    <h3 id="scan-result-title" class="scan-result-title"></h3>
+    <p id="scan-result-body" class="scan-result-body"></p>
+    <button id="scan-result-close" class="scan-result-close" type="button">حسناً</button>
   </div>
 </div>
 
