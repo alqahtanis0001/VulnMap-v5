@@ -7,6 +7,8 @@
 
   const EP = VM.endpoints;
   const UI = VM.ui;
+  const RESULT_WAIT_AFTER_VISUAL_MS = 2500;
+  const SCAN_FETCH_TIMEOUT_MS = 25000;
 
   function clearScanTimer(name) {
     if (!VM.state) return;
@@ -21,6 +23,8 @@
     VM.state = VM.state || {};
     clearScanTimer('scanCloseTimer');
     clearScanTimer('scanFailSafeTimer');
+    clearScanTimer('scanRequestTimer');
+    clearScanTimer('scanResultWaitTimer');
     VM.state.scanRunId = (VM.state.scanRunId || 0) + 1;
     VM.state.scanInFlight = true;
     return VM.state.scanRunId;
@@ -176,6 +180,8 @@
 
     clearScanTimer('scanCloseTimer');
     clearScanTimer('scanFailSafeTimer');
+    clearScanTimer('scanRequestTimer');
+    clearScanTimer('scanResultWaitTimer');
     hideScanOverlay();
     if (btn) {
       btn.disabled = false;
@@ -258,6 +264,27 @@
     const stepDur = totalMs / steps.length;
 
     // ---- Animation Tick ----
+    function settleScanPayload(nextPayload) {
+      if (!isActiveScan(runId) || backendDone) return;
+      payload = nextPayload || { ok:false };
+      backendDone = true;
+      clearScanTimer('scanRequestTimer');
+      clearScanTimer('scanResultWaitTimer');
+      finishIfReady();
+    }
+
+    VM.state.scanRequestTimer = setTimeout(() => {
+      settleScanPayload({ ok:false, error:'timeout' });
+    }, SCAN_FETCH_TIMEOUT_MS);
+
+    function scheduleResultWait() {
+      if (!isActiveScan(runId) || backendDone || VM.state.scanResultWaitTimer) return;
+      if (status) status.textContent = 'تجهيز نتيجة الفحص...';
+      VM.state.scanResultWaitTimer = setTimeout(() => {
+        settleScanPayload({ ok:false, error:'timeout' });
+      }, RESULT_WAIT_AFTER_VISUAL_MS);
+    }
+
     function finishIfReady() {
       if (!isActiveScan(runId)) return;
       if (finalized || !visualDone || !backendDone) return;
@@ -318,6 +345,7 @@
 
       if (elapsed >= totalMs) {
         visualDone = true;
+        scheduleResultWait();
         finishIfReady();
       }
 
@@ -327,6 +355,17 @@
     }
 
     requestAnimationFrame(tick);
+
+    fetch(EP.scanJson, {
+      method: 'POST',
+      headers: {
+        'X-Requested-With': 'fetch',
+        'X-CSRFToken': csrfToken()
+      },
+      credentials: 'same-origin'
+    }).then(r => r.json())
+      .then(d => { settleScanPayload(d); })
+      .catch(() => { settleScanPayload({ ok:false }); });
 
     // Hard fail-safe: never leave scan lock stuck on client.
     VM.state.scanFailSafeTimer = setTimeout(() => {
