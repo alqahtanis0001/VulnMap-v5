@@ -227,7 +227,7 @@
     if (status) status.textContent = 'تهيئة محرك الاكتشاف...';
 
     // Minimum visible scan time before showing the result dialog.
-    const totalMs = 5200 + Math.floor(Math.random() * 1600);
+    const totalMs = 12400 + Math.floor(Math.random() * 5800);
     const start = performance.now();
 
     // Fire backend request right away
