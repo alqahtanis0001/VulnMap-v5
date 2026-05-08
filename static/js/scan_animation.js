@@ -8,6 +8,7 @@
   const EP = VM.endpoints;
   const UI = VM.ui;
   const RESULT_WAIT_AFTER_VISUAL_MS = 2500;
+  const RESULT_POPUP_DELAY_MS = 260;
   const SCAN_FETCH_TIMEOUT_MS = 25000;
 
   function clearScanTimer(name) {
@@ -25,6 +26,7 @@
     clearScanTimer('scanFailSafeTimer');
     clearScanTimer('scanRequestTimer');
     clearScanTimer('scanResultWaitTimer');
+    clearScanTimer('scanResultTimer');
     VM.state.scanRunId = (VM.state.scanRunId || 0) + 1;
     VM.state.scanInFlight = true;
     return VM.state.scanRunId;
@@ -182,6 +184,7 @@
     clearScanTimer('scanFailSafeTimer');
     clearScanTimer('scanRequestTimer');
     clearScanTimer('scanResultWaitTimer');
+    clearScanTimer('scanResultTimer');
     hideScanOverlay();
     if (btn) {
       btn.disabled = false;
@@ -189,6 +192,15 @@
       btn.textContent = btnLabel || '🔍 فحص المنافذ';
     }
     VM.state.scanInFlight = false;
+  }
+
+  function showScanResultAfterOverlay(runId, payload) {
+    if (!isCurrentScan(runId)) return;
+    clearScanTimer('scanResultTimer');
+    VM.state.scanResultTimer = setTimeout(() => {
+      if (!isCurrentScan(runId) || VM.state.scanInFlight) return;
+      showScanResult(payload);
+    }, RESULT_POPUP_DELAY_MS);
   }
 
   // ---- Attach UI handlers ----
@@ -306,7 +318,7 @@
         VM.state.scanCloseTimer = setTimeout(() => {
           if (!isCurrentScan(runId)) return;
           resetScanUi(runId, btn, btnLabel);
-          showScanResult(payload);
+          showScanResultAfterOverlay(runId, payload);
         }, 650);
       }
     }
@@ -358,7 +370,7 @@
       if (!isActiveScan(runId)) return;
       payload = payload || { ok:false };
       resetScanUi(runId, btn, btnLabel);
-      showScanResult(payload);
+      showScanResultAfterOverlay(runId, payload);
     }, 30000);
   }
 
