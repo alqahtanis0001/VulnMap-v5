@@ -236,22 +236,6 @@
     const totalMs = 12400 + Math.floor(Math.random() * 5800);
     const start = performance.now();
 
-    // Fire backend request right away
-    fetch(EP.scanJson, {
-      method: 'POST',
-      headers: {
-        'X-Requested-With': 'fetch',
-        'X-CSRFToken': csrfToken()
-      },
-      credentials: 'same-origin'
-    }).then(r => r.json())
-      .then(d => { payload = d; })
-      .catch(() => { payload = { ok:false }; })
-      .finally(() => {
-        backendDone = true;
-        finishIfReady();
-      });
-
     // Step messages (Arabic)
     const steps = [
       'تهيئة محرك الاكتشاف...',
@@ -356,6 +340,8 @@
 
     requestAnimationFrame(tick);
 
+    // Fire backend request right away. If it never settles, the result wait
+    // timer turns the stalled scan into a visible error dialog.
     fetch(EP.scanJson, {
       method: 'POST',
       headers: {
