@@ -65,6 +65,47 @@
       color:#6fffc3;
       font-size:1.05rem;
     }
+    .repair-admin-card{
+      border-color:rgba(255,107,107,.18);
+    }
+    .repair-admin-grid{
+      display:grid;
+      grid-template-columns:minmax(220px, 1fr) auto;
+      gap:12px;
+      align-items:end;
+    }
+    .repair-admin-status{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      margin:6px 0 12px;
+      padding:8px 12px;
+      border-radius:999px;
+      border:1px solid rgba(122,173,255,.2);
+      background:rgba(122,173,255,.08);
+      color:#dce7ff;
+      font-weight:700;
+    }
+    .repair-admin-status.is-active{
+      border-color:rgba(111,255,195,.24);
+      background:rgba(111,255,195,.08);
+      color:#dfffee;
+    }
+    .repair-arm-panel{
+      margin-top:12px;
+      padding:10px 12px;
+      border:1px solid rgba(255,184,107,.28);
+      border-radius:12px;
+      background:rgba(255,184,107,.08);
+      color:#ffe4c2;
+    }
+    .repair-arm-actions{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+      margin-top:8px;
+    }
     @media (max-width:1000px){
       .admin-form--four{
         grid-template-columns:repeat(2,minmax(160px,1fr));
@@ -88,6 +129,9 @@
       }
       .admin-health-actions .btn{
         flex:1 1 auto;
+      }
+      .repair-admin-grid{
+        grid-template-columns:1fr;
       }
     }
     @media (max-width:540px){
@@ -206,6 +250,55 @@
       <button class="btn" type="submit">حفظ مدة المجمع</button>
     </div>
   </form>
+</div>
+
+<br>
+
+{% set repair = repair_state or {} %}
+<div class="card repair-admin-card" id="admin-repair-card">
+  <h3>تحكم الإصلاح الوهمي</h3>
+  {% if repair.active %}
+    <div class="repair-admin-status is-active"
+         data-admin-repair-active
+         data-repair-until="{{ repair.repair_until or '' }}">
+      <span>وضع الإصلاح نشط الآن</span>
+      <strong data-admin-repair-countdown>--:--</strong>
+    </div>
+    <form method="post" action="{{ url_for('admin_repair_cancel') }}" style="margin:0 0 12px;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn tertiary small" type="submit">إلغاء وضع الإصلاح</button>
+    </form>
+  {% else %}
+    <div class="repair-admin-status">
+      <span>جاهز للتشغيل عند الحاجة</span>
+    </div>
+  {% endif %}
+
+  <form id="repair-trigger-form"
+        method="post"
+        action="{{ url_for('admin_repair_start') }}"
+        class="repair-admin-grid">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div>
+      <label>مدة منع المستخدمين من تسجيل الدخول أثناء الإصلاح (بالدقائق)</label>
+      <input type="number"
+             name="duration_minutes"
+             min="1"
+             max="1440"
+             step="1"
+             value="{{ repair.duration_minutes if repair.duration_minutes else 10 }}"
+             required>
+    </div>
+    <button id="repair-arm-button" class="btn danger" type="button">Crash user page</button>
+  </form>
+
+  <div id="repair-arm-panel" class="repair-arm-panel" hidden>
+    <div>سيتم تنفيذ الأمر خلال <strong id="repair-arm-countdown">5</strong> ثوان.</div>
+    <div class="repair-arm-actions">
+      <button id="repair-cancel-arm" class="btn tertiary small" type="button">إلغاء الأمر</button>
+      <span class="small muted">لن يتم إرسال الأمر إذا ضغطت إلغاء قبل انتهاء العد.</span>
+    </div>
+  </div>
 </div>
 
 <br>
@@ -927,6 +1020,72 @@ if (window.VM && VM.progress) VM.progress.hide();
   window.addEventListener('beforeunload', function () {
     clearInterval(timer);
   }, { once: true });
+})();
+</script>
+
+<script>
+(function () {
+  const form = document.getElementById('repair-trigger-form');
+  const armButton = document.getElementById('repair-arm-button');
+  const panel = document.getElementById('repair-arm-panel');
+  const cancelButton = document.getElementById('repair-cancel-arm');
+  const countdown = document.getElementById('repair-arm-countdown');
+  let timer = null;
+  let remaining = 5;
+
+  function resetArm() {
+    if (timer) clearInterval(timer);
+    timer = null;
+    remaining = 5;
+    if (countdown) countdown.textContent = '5';
+    if (panel) panel.hidden = true;
+    if (armButton) armButton.disabled = false;
+  }
+
+  if (form && armButton && panel && cancelButton) {
+    armButton.addEventListener('click', function () {
+      if (timer) return;
+      panel.hidden = false;
+      armButton.disabled = true;
+      remaining = 5;
+      if (countdown) countdown.textContent = String(remaining);
+
+      timer = setInterval(function () {
+        remaining -= 1;
+        if (countdown) countdown.textContent = String(Math.max(0, remaining));
+        if (remaining <= 0) {
+          clearInterval(timer);
+          timer = null;
+          form.submit();
+        }
+      }, 1000);
+    });
+
+    cancelButton.addEventListener('click', resetArm);
+  }
+
+  const active = document.querySelector('[data-admin-repair-active]');
+  const activeCountdown = document.querySelector('[data-admin-repair-countdown]');
+  if (active && activeCountdown) {
+    const until = Date.parse(active.getAttribute('data-repair-until') || '');
+
+    function format(seconds) {
+      const s = Math.max(0, seconds);
+      const m = Math.floor(s / 60);
+      const r = s % 60;
+      return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
+    }
+
+    function tickActive() {
+      const remainingSeconds = Math.ceil((until - Date.now()) / 1000);
+      activeCountdown.textContent = remainingSeconds > 0
+        ? format(remainingSeconds)
+        : 'انتهى';
+      if (remainingSeconds > 0) setTimeout(tickActive, 1000);
+    }
+
+    if (until) tickActive();
+  }
 })();
 </script>
 

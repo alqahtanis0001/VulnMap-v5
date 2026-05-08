@@ -1,6 +1,54 @@
 {% extends "base.html" %}
 {% block title %}Login — VulnMap{% endblock %}
+{% block head %}
+  {{ super() }}
+  <style>
+    .repair-login-notice{
+      max-width:560px;
+      margin:0 auto 14px;
+      border-color:rgba(111,255,195,.22);
+      background:linear-gradient(135deg, rgba(111,255,195,.08), rgba(42,111,255,.08)), var(--card);
+    }
+    .repair-login-notice h3{
+      margin:0 0 6px;
+      color:#dfffee;
+    }
+    .repair-login-notice p{
+      margin:4px 0;
+      color:#b8c5d6;
+    }
+    .repair-countdown{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      margin-top:8px;
+      padding:6px 10px;
+      border-radius:999px;
+      background:rgba(111,255,195,.1);
+      color:#9cffe1;
+      font-weight:800;
+    }
+  </style>
+{% endblock %}
 {% block content %}
+
+{% set repair = repair_state or {} %}
+{% if repair.active %}
+  <div class="card repair-login-notice"
+       data-repair-login
+       data-repair-until="{{ repair.repair_until or '' }}">
+    <h3>وضع الإصلاح مفعل حالياً</h3>
+    <p>لا يمكن للمستخدمين تسجيل الدخول حتى ينتهي برنامج الإصلاح.</p>
+    <div class="repair-countdown" data-repair-login-countdown>
+      يرجى الانتظار...
+    </div>
+  </div>
+{% elif request.args.get('repair') %}
+  <div class="card repair-login-notice">
+    <h3>تم الانتهاء من الإصلاح، يمكنك الآن تسجيل الدخول</h3>
+    <p>تم إغلاق جلسة الإصلاح السابقة بنجاح.</p>
+  </div>
+{% endif %}
 
 <!-- Auth card -->
 <div class="card rtl" style="max-width:560px;margin-inline:auto;overflow:hidden;">
@@ -103,7 +151,7 @@
     pw && pw.addEventListener('keydown', onKey);
 
     // Remember me (stores username locally only)
-    form && form.addEventListener('submit', function(){
+	    form && form.addEventListener('submit', function(){
       // Optional global progress overlay (from base.html helpers)
       if (window.VM && VM.progress && submitBtn) {
         VM.progress.show('جارٍ تسجيل الدخول…', 'يتم التحقق من بيانات الدخول.');
@@ -116,8 +164,37 @@
         }
       } catch(e) {}
       // Let the form submit normally
-    });
-  })();
+	    });
+
+	    (function repairCountdown(){
+	      var box = document.querySelector('[data-repair-login]');
+	      var out = document.querySelector('[data-repair-login-countdown]');
+	      if (!box || !out) return;
+
+	      var untilRaw = box.getAttribute('data-repair-until') || '';
+	      var until = Date.parse(untilRaw);
+	      if (!until) return;
+
+	      function format(seconds){
+	        var s = Math.max(0, seconds);
+	        var m = Math.floor(s / 60);
+	        var r = s % 60;
+	        return String(m).padStart(2, '0') + ':' + String(r).padStart(2, '0');
+	      }
+
+	      function tick(){
+	        var remaining = Math.ceil((until - Date.now()) / 1000);
+	        if (remaining <= 0) {
+	          out.textContent = 'تم الانتهاء من الإصلاح، يمكنك الآن تسجيل الدخول';
+	          return;
+	        }
+	        out.textContent = 'يمكنك تسجيل الدخول بعد ' + format(remaining);
+	        setTimeout(tick, 1000);
+	      }
+
+	      tick();
+	    })();
+	  })();
 
 </script>
   <script defer src="{{ url_for('static', filename='js/index_login.js') }}"></script>
@@ -125,4 +202,3 @@
     /* keep your current inline login helpers here (show/hide password, caps, remember me)… */
   </script>
 {% endblock %}
-

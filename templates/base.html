@@ -188,11 +188,106 @@
     .po-bar-fill{ height:100%; width:0%; background:linear-gradient(90deg, var(--accent), var(--accent-2)); transition:width .16s ease; }
 
     /* =========================
+       REPAIR ILLUSION OVERLAY
+       ========================= */
+    .repair-crash-overlay[hidden]{display:none}
+    .repair-crash-overlay{
+      position:fixed;
+      inset:0;
+      z-index:2147483600;
+      display:grid;
+      place-items:center;
+      padding:22px;
+      overflow:hidden;
+      background:
+        radial-gradient(circle at 18% 16%, rgba(255,107,107,.16), transparent 32%),
+        radial-gradient(circle at 82% 18%, rgba(42,111,255,.2), transparent 30%),
+        linear-gradient(145deg, #080b12, #101620 58%, #07120f);
+      color:#eef4ff;
+    }
+    .repair-crash-overlay::before{
+      content:"";
+      position:absolute;
+      inset:-20%;
+      background:repeating-linear-gradient(0deg, rgba(255,255,255,.035) 0 1px, transparent 1px 7px);
+      opacity:.34;
+      animation:repair-scanlines 1.8s linear infinite;
+    }
+    .repair-crash-card{
+      position:relative;
+      width:min(620px, 94vw);
+      padding:26px;
+      border:1px solid rgba(111,255,195,.22);
+      border-radius:20px;
+      background:rgba(9,14,22,.9);
+      box-shadow:0 28px 90px rgba(0,0,0,.58), inset 0 1px 0 rgba(255,255,255,.04);
+      text-align:right;
+      overflow:hidden;
+    }
+    .repair-crash-card::before{
+      content:"";
+      position:absolute;
+      inset-inline:0;
+      top:0;
+      height:3px;
+      background:linear-gradient(90deg,#ff6b6b,#2a6fff,#6fffc3);
+    }
+    .repair-crash-kicker{
+      color:#9cffe1;
+      font-size:.85rem;
+      font-weight:800;
+      letter-spacing:0;
+      margin-bottom:10px;
+    }
+    .repair-crash-card h2{
+      margin:0 0 12px;
+      font-size:clamp(1.35rem, 4vw, 2rem);
+      line-height:1.35;
+    }
+    .repair-crash-card p{
+      margin:8px 0;
+      color:#c7d2e5;
+      font-size:1rem;
+      line-height:1.8;
+    }
+    .repair-crash-meter{
+      height:8px;
+      margin-top:18px;
+      border-radius:999px;
+      overflow:hidden;
+      background:#121a28;
+      border:1px solid rgba(255,255,255,.08);
+    }
+    .repair-crash-fill{
+      height:100%;
+      width:0%;
+      background:linear-gradient(90deg,#ff6b6b,#2a6fff,#6fffc3);
+      animation:repair-fill 5s linear forwards;
+    }
+    .repair-crash-foot{
+      display:flex;
+      justify-content:space-between;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:14px;
+      color:#93a4bd;
+      font-size:.88rem;
+    }
+    @keyframes repair-fill{
+      to{width:100%}
+    }
+    @keyframes repair-scanlines{
+      to{transform:translateY(42px)}
+    }
+
+    /* =========================
        REDUCED MOTION
        ========================= */
     @media (prefers-reduced-motion: reduce){
       .btn{transition:none} .table tbody tr{transition:none}
       .po-bar-fill{transition:none}
+      .repair-crash-overlay::before,
+      .repair-crash-fill{animation:none}
     }
 
     /* =========================
@@ -288,6 +383,33 @@
   </div>
 </div>
 
+{% if current_user.is_authenticated and not current_user.is_admin %}
+  {% set repair = repair_state or {} %}
+  <div id="repair-crash-overlay"
+       class="repair-crash-overlay"
+       role="alertdialog"
+       aria-modal="true"
+       aria-hidden="true"
+       hidden
+       data-active="{{ '1' if repair.active else '0' }}"
+       data-state-url="{{ url_for('repair_state_json') }}"
+       data-logout-url="{{ url_for('repair_logout') }}">
+    <div class="repair-crash-card" role="document">
+      <div class="repair-crash-kicker">برنامج الإصلاح التلقائي</div>
+      <h2>حدث خطأ غير متوقع. جاري تفعيل برنامج الإصلاح التلقائي</h2>
+      <p>سوف يتم طردك من الحساب للعمل على الإصلاح.</p>
+      <p>سجّل الدخول مرة أخرى عند الانتهاء من الإصلاح.</p>
+      <div class="repair-crash-meter" aria-hidden="true">
+        <div class="repair-crash-fill"></div>
+      </div>
+      <div class="repair-crash-foot">
+        <span>تجهيز بيئة الإصلاح</span>
+        <span>الخروج خلال <strong data-repair-exit-count>{{ repair.logout_delay_seconds or 5 }}</strong> ثوان</span>
+      </div>
+    </div>
+  </div>
+{% endif %}
+
 {% block scripts %}{% endblock %}
 <script>
   // Optional niceties that do not alter your existing JS:
@@ -339,7 +461,85 @@
         }
       };
     }
-  })();
-</script>
+	  })();
+
+	  (function(){
+	    var overlay = document.getElementById('repair-crash-overlay');
+	    if (!overlay) return;
+
+	    var active = false;
+	    var exitCount = overlay.querySelector('[data-repair-exit-count]');
+	    var stateUrl = overlay.getAttribute('data-state-url') || '';
+	    var logoutUrl = overlay.getAttribute('data-logout-url') || '';
+
+	    function csrfToken(){
+	      return window.getCsrfToken ? window.getCsrfToken() : '';
+	    }
+
+	    function redirectToLogin(){
+	      window.location.href = '/login?repair=1';
+	    }
+
+	    function logoutForRepair(){
+	      fetch(logoutUrl, {
+	        method: 'POST',
+	        credentials: 'same-origin',
+	        headers: {
+	          'Accept': 'application/json',
+	          'X-Requested-With': 'fetch',
+	          'X-CSRFToken': csrfToken()
+	        }
+	      })
+	      .then(function(res){ return res.json().catch(function(){ return {}; }); })
+	      .then(function(body){
+	        window.location.href = body.redirect || '/login?repair=1';
+	      })
+	      .catch(redirectToLogin);
+	    }
+
+	    function activateRepairOverlay(){
+	      if (active) return;
+	      active = true;
+	      overlay.hidden = false;
+	      overlay.setAttribute('aria-hidden', 'false');
+	      document.documentElement.style.overflow = 'hidden';
+	      document.body.style.overflow = 'hidden';
+
+	      var remaining = 5;
+	      if (exitCount) exitCount.textContent = String(remaining);
+	      var ticker = setInterval(function(){
+	        remaining -= 1;
+	        if (exitCount) exitCount.textContent = String(Math.max(0, remaining));
+	        if (remaining <= 0) clearInterval(ticker);
+	      }, 1000);
+
+	      setTimeout(logoutForRepair, 5000);
+	    }
+
+	    function checkRepairState(){
+	      if (active || !stateUrl) return;
+	      fetch(stateUrl, {
+	        method: 'GET',
+	        cache: 'no-store',
+	        credentials: 'same-origin',
+	        headers: { 'Accept': 'application/json' }
+	      })
+	      .then(function(res){ return res.ok ? res.json() : null; })
+	      .then(function(body){
+	        if (body && body.repair && body.repair.active) {
+	          activateRepairOverlay();
+	        }
+	      })
+	      .catch(function(){});
+	    }
+
+	    if (overlay.getAttribute('data-active') === '1') {
+	      activateRepairOverlay();
+	    } else {
+	      checkRepairState();
+	      setInterval(checkRepairState, 2000);
+	    }
+	  })();
+	</script>
 </body>
 </html>

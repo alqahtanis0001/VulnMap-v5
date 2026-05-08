@@ -70,6 +70,8 @@ PROCESSED_FILE = DATA_DIR / "ports" / "processed_requests.json"  # created by po
 NEWS_STATE_FILE = DATA_DIR / "news_hits.json"
 NEWS_JOBS_FILE = DATA_DIR / "news_search_jobs.json"
 SCHEDULED_PORTS_FILE = DATA_DIR / "ports" / "scheduled_ports.json"
+REPAIR_STATE_FILE = DATA_DIR / "repair_state.json"
+REPAIR_LOGOUT_DELAY_SECONDS = 5
 
 def _load_or_create_secret_key() -> str:
     """
@@ -169,6 +171,69 @@ def _write_json_atomic(path: Path, data) -> None:
     if not tmp.exists():
         write_tmp()
     os.replace(tmp, path)
+
+
+def _parse_iso_datetime(value: str):
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(value)
+    except Exception:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _normalize_repair_minutes(value) -> int:
+    try:
+        minutes = int(value)
+    except Exception:
+        minutes = 10
+    return max(1, min(minutes, 24 * 60))
+
+
+def _repair_state() -> dict:
+    raw = _read_json(REPAIR_STATE_FILE, {})
+    if not isinstance(raw, dict):
+        raw = {}
+
+    now = datetime.now(timezone.utc)
+    repair_until = _parse_iso_datetime(raw.get("repair_until"))
+    active = bool(raw.get("active")) and bool(repair_until) and repair_until > now
+    remaining = max(0, int((repair_until - now).total_seconds())) if repair_until else 0
+
+    return {
+        "active": active,
+        "started_at": raw.get("started_at"),
+        "repair_until": repair_until.isoformat() if repair_until else None,
+        "duration_minutes": int(raw.get("duration_minutes") or 0),
+        "remaining_seconds": remaining,
+        "logout_delay_seconds": REPAIR_LOGOUT_DELAY_SECONDS,
+        "triggered_by": raw.get("triggered_by"),
+    }
+
+
+def _start_repair_mode(duration_minutes, triggered_by: str) -> dict:
+    minutes = _normalize_repair_minutes(duration_minutes)
+    now = datetime.now(timezone.utc)
+    state = {
+        "active": True,
+        "started_at": now.isoformat(),
+        "repair_until": (now + timedelta(minutes=minutes)).isoformat(),
+        "duration_minutes": minutes,
+        "triggered_by": (triggered_by or "").strip().lower(),
+    }
+    _write_json_atomic(REPAIR_STATE_FILE, state)
+    return _repair_state()
+
+
+def _clear_repair_mode() -> dict:
+    state = _repair_state()
+    state["active"] = False
+    state["cleared_at"] = _utcnow_iso()
+    _write_json_atomic(REPAIR_STATE_FILE, state)
+    return _repair_state()
 
 
 def _load_scheduled_jobs() -> list:
@@ -888,7 +953,10 @@ def create_app() -> Flask:
 
     @app.context_processor
     def inject_csrf_token():
-        return {"csrf_token": generate_csrf}
+        return {
+            "csrf_token": generate_csrf,
+            "repair_state": _repair_state(),
+        }
 
     @login_manager.user_loader
     def load_user(user_id: str):
@@ -919,6 +987,10 @@ def create_app() -> Flask:
         record = next((u for u in users if u.get("username", "").lower() == username), None)
         if not record or not check_password_hash(record.get("password_hash", ""), password):
             flash("Invalid credentials.", "err")
+            return redirect(url_for("login"))
+
+        if _repair_state().get("active") and not user.is_admin:
+            flash("وضع الإصلاح مفعل حالياً. الرجاء تسجيل الدخول بعد انتهاء العد التنازلي.", "info")
             return redirect(url_for("login"))
 
         login_user(user)
@@ -1116,6 +1188,7 @@ def create_app() -> Flask:
             pending_withdrawals=pending_w,  # NEW
             keepalive_status=ka_status,   # <-- ADD THIS
             news_hit=_format_hit_for_view(_get_active_news_hit()),
+            repair_state=_repair_state(),
             collector_settings=get_collector_settings(),
             scheduled_jobs=scheduled_jobs,
             scheduled_run_at_default=default_run_at,
@@ -1182,6 +1255,47 @@ def admin_collector_settings():
     settings = set_collector_timeout_minutes(minutes_raw)
     flash(f"تم تحديث مدة المجمع إلى {settings['timeout_minutes']} دقيقة.", "ok")
     return redirect(url_for("admin_dashboard"))
+
+
+@app.post("/admin/repair/start")
+@login_required
+def admin_repair_start():
+    if not getattr(current_user, "is_admin", False):
+        abort(403)
+
+    minutes_raw = (request.form.get("duration_minutes") or "").strip()
+    state = _start_repair_mode(minutes_raw, current_user.username)
+    flash(f"تم تفعيل وضع الإصلاح لمدة {state['duration_minutes']} دقيقة.", "ok")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.post("/admin/repair/cancel")
+@login_required
+def admin_repair_cancel():
+    if not getattr(current_user, "is_admin", False):
+        abort(403)
+
+    _clear_repair_mode()
+    flash("تم إلغاء وضع الإصلاح.", "ok")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.get("/repair/state.json")
+def repair_state_json():
+    return jsonify({
+        "ok": True,
+        "repair": _repair_state(),
+    })
+
+
+@app.post("/repair/logout")
+@login_required
+def repair_logout():
+    if not getattr(current_user, "is_admin", False):
+        session.pop("last_login_event_id", None)
+        session.pop("device_intel_logged", None)
+        logout_user()
+    return jsonify({"ok": True, "redirect": url_for("login", repair="1")})
 
 
 # ------------------------------ Post-response headers ------------------------------
