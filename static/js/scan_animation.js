@@ -11,7 +11,7 @@
   // The scan/search window stays open for this exact duration before any result can appear.
   const SCAN_WINDOW_DURATION_MS = 12000;
   // Optional random extra time. Keep 0 when you want the duration to be exact.
-  const SCAN_WINDOW_RANDOM_EXTRA_MS = 0;
+  const SCAN_WINDOW_RANDOM_EXTRA_MS = 6000;
   // If the backend is still not done after the visual window finishes, wait this long before showing an error.
   const SCAN_BACKEND_GRACE_MS = 10000;
   const RESULT_POPUP_DELAY_MS = 260;
