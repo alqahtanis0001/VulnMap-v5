@@ -6,7 +6,7 @@
 # - Business logic in port_logic.py
 
 from __future__ import annotations
-from flask import current_app
+import encodings.idna  # noqa: F401 - ensure Werkzeug can resolve the standard idna codec on hosted runtimes.
 import time
 import threading
 import os
@@ -23,7 +23,7 @@ from rayan_wallet import is_rayan, reset_rayan_wallet
 from data_paths import get_data_dir
 
 from flask import (
-    Flask, render_template, request, redirect, url_for, flash, abort, jsonify,
+    Flask, current_app, render_template, request, redirect, url_for, flash, abort, jsonify,
     session
 )
 from flask_login import (
