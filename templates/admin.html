@@ -48,6 +48,23 @@
       align-items:center;
       flex-wrap:wrap;
     }
+    .collector-current{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      margin:6px 0 12px;
+      padding:8px 12px;
+      border:1px solid rgba(111,255,195,.22);
+      border-radius:999px;
+      background:rgba(111,255,195,.08);
+      color:#dfffee;
+      font-weight:700;
+      font-size:.95rem;
+    }
+    .collector-current strong{
+      color:#6fffc3;
+      font-size:1.05rem;
+    }
     @media (max-width:1000px){
       .admin-form--four{
         grid-template-columns:repeat(2,minmax(160px,1fr));
@@ -169,6 +186,11 @@
 {% set collector_cfg = collector_settings or {} %}
 <div class="card">
   <h3>إعدادات المجمع</h3>
+  <div class="collector-current">
+    <span>المجمع مضبوط حالياً على</span>
+    <strong>{{ collector_cfg.timeout_minutes or 30 }}</strong>
+    <span>دقيقة</span>
+  </div>
   <form method="post" action="{{ url_for('admin_collector_settings') }}" class="admin-form admin-form--auto">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div>
