@@ -163,7 +163,7 @@
     if (btn) {
       btn.disabled = false;
       btn.classList.remove('disabled');
-      btn.textContent = btnLabel || '🔍 فحص المنافذ';
+      btn.textContent = btnLabel || 'فحص المنافذ';
     }
     VM.state.scanInFlight = false;
   }
@@ -221,7 +221,7 @@
     if (btn) {
       btn.disabled = true;
       btn.classList.add('disabled');
-      btn.textContent = '⏳ جارٍ الفحص...';
+      btn.textContent = 'جارٍ الفحص...';
     }
     if (bar) {
       bar.style.transition = 'width .15s linear';

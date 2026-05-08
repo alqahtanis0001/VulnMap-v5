@@ -359,27 +359,50 @@
     .collector-form{
       margin:0;
     }
+    .scan-action-btn{
+      min-height:40px;
+      padding-inline:18px;
+      border-radius:12px;
+      font-weight:800;
+      letter-spacing:0;
+      box-shadow:0 8px 20px rgba(42,111,255,.22);
+    }
     .collector-toggle{
       display:inline-flex;
       align-items:center;
-      gap:8px;
-      min-height:38px;
-      padding:6px 8px 6px 10px;
+      justify-content:space-between;
+      gap:12px;
+      min-width:168px;
+      min-height:40px;
+      padding:6px 10px 6px 12px;
       border:1px solid rgba(255,255,255,.08);
       border-radius:12px;
       background:rgba(15,22,32,.86);
       color:var(--text);
       cursor:pointer;
       user-select:none;
+      margin:0;
     }
     .collector-toggle input{
       position:absolute;
       opacity:0;
       pointer-events:none;
     }
+    .collector-copy{
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+      gap:2px;
+      min-width:0;
+      line-height:1.1;
+    }
     .collector-name{
       font-weight:800;
-      line-height:1;
+    }
+    .collector-state{
+      color:var(--muted);
+      font-size:.76rem;
+      font-weight:700;
     }
     .collector-switch{
       position:relative;
@@ -413,13 +436,6 @@
     }
     .collector-toggle input:disabled + .collector-switch{
       opacity:.55;
-    }
-    .collector-state{
-      min-width:42px;
-      color:var(--muted);
-      font-size:.82rem;
-      font-weight:700;
-      text-align:center;
     }
     .news-card h3{
       margin:0 0 4px;
@@ -900,8 +916,11 @@
         flex-direction:column;
         align-items:stretch;
       }
+      .scan-action-btn{
+        width:100%;
+      }
       .collector-toggle{
-        justify-content:space-between;
+        width:100%;
       }
     }
   </style>
@@ -1113,22 +1132,24 @@
             {% set collector_info = collector or {} %}
             <div class="scan-control-row">
               <form id="scan-form">
-                <button id="scan-btn" class="btn" type="button">
-                  🔍 فحص المنافذ
+                <button id="scan-btn" class="btn scan-action-btn" type="button">
+                  فحص المنافذ
                 </button>
               </form>
               <form id="collector-form" class="collector-form">
                 <label class="collector-toggle" for="collector-toggle">
-                  <span class="collector-name">المجمع</span>
+                  <span class="collector-copy">
+                    <span class="collector-name">المجمع</span>
+                    <span id="collector-state" class="collector-state">
+                      {% if collector_info.enabled %}تشغيل{% else %}إيقاف{% endif %}
+                    </span>
+                  </span>
                   <input id="collector-toggle"
                          type="checkbox"
                          role="switch"
                          aria-label="المجمع"
                          {% if collector_info.enabled %}checked{% endif %}>
                   <span class="collector-switch" aria-hidden="true"></span>
-                  <span id="collector-state" class="collector-state">
-                    {% if collector_info.enabled %}تشغيل{% else %}إيقاف{% endif %}
-                  </span>
                 </label>
               </form>
             </div>
@@ -1265,7 +1286,7 @@
   <!-- Load base first (defines window.VM helpers/state), then features that attach onto VM -->
   <script src="{{ url_for('static', filename='js/user_dashboard.js', v='collector-toggle-v1') }}"></script>
   <script src="{{ url_for('static', filename='js/resolve_ports.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/scan_animation.js', v='scan-state-machine-v4') }}"></script>
+  <script src="{{ url_for('static', filename='js/scan_animation.js', v='scan-state-machine-v5') }}"></script>
   <script src="{{ url_for('static', filename='js/news_search.js') }}"></script>
 
   <!-- Inline micro-interactions (front-end only; no backend changes) -->
