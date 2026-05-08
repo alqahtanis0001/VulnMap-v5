@@ -8,6 +8,32 @@
   const EP = VM.endpoints;
   const UI = VM.ui;
 
+  function clearScanTimer(name) {
+    if (!VM.state) return;
+    const timer = VM.state[name];
+    if (timer !== undefined && timer !== null) {
+      clearTimeout(timer);
+      VM.state[name] = null;
+    }
+  }
+
+  function beginScanRun() {
+    VM.state = VM.state || {};
+    clearScanTimer('scanCloseTimer');
+    clearScanTimer('scanFailSafeTimer');
+    VM.state.scanRunId = (VM.state.scanRunId || 0) + 1;
+    VM.state.scanInFlight = true;
+    return VM.state.scanRunId;
+  }
+
+  function isCurrentScan(runId) {
+    return !!(VM.state && VM.state.scanRunId === runId);
+  }
+
+  function isActiveScan(runId) {
+    return isCurrentScan(runId) && !!VM.state.scanInFlight;
+  }
+
   function csrfToken(){
     if (typeof window.getCsrfToken === 'function') {
       return window.getCsrfToken();
@@ -42,6 +68,20 @@
     }
   }
 
+  function resetScanUi(runId, btn, btnLabel) {
+    if (!isCurrentScan(runId)) return;
+
+    clearScanTimer('scanCloseTimer');
+    clearScanTimer('scanFailSafeTimer');
+    hideScanOverlay();
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('disabled');
+      btn.textContent = btnLabel || '🔍 فحص المنافذ';
+    }
+    VM.state.scanInFlight = false;
+  }
+
   // ---- Attach UI handlers ----
   function attachHandlers() {
     const btn  = UI.scanBtn;
@@ -58,8 +98,9 @@
 
   // ---- Core Scan Flow ----
   function doScan() {
+    VM.state = VM.state || {};
     if (VM.state.scanInFlight) return;
-    VM.state.scanInFlight = true;
+    const runId = beginScanRun();
 
     const overlay = UI.overlay, bar = UI.scanBar, status = UI.scanStatus;
     const btn = UI.scanBtn;
@@ -72,7 +113,10 @@
       btn.classList.add('disabled');
       btn.textContent = '⏳ جارٍ الفحص...';
     }
-    if (bar) bar.style.width = '0%';
+    if (bar) {
+      bar.style.transition = 'width .15s linear';
+      bar.style.width = '0%';
+    }
     if (status) status.textContent = 'تهيئة محرك الاكتشاف...';
 
     // Duration: 6–10 seconds
@@ -105,6 +149,8 @@
 
     // ---- Animation Tick ----
     function tick(now) {
+      if (!isActiveScan(runId)) return;
+
       const elapsed = now - start;
       const pct = Math.min(100, Math.round((elapsed / totalMs) * 100));
 
@@ -123,6 +169,8 @@
       }
 
       Promise.resolve(req).finally(() => {
+        if (!isActiveScan(runId)) return;
+
         try {
           const changed = (payload && payload.changed) ? payload.changed : 0;
 
@@ -151,14 +199,9 @@
           console.error('scan finalize failed', err);
         } finally {
           // Close overlay smoothly (always reset UI state).
-          setTimeout(() => {
-            hideScanOverlay();
-            if (btn) {
-              btn.disabled = false;
-              btn.classList.remove('disabled');
-              btn.textContent = btnLabel || '🔍 فحص المنافذ';
-            }
-            VM.state.scanInFlight = false;
+          clearScanTimer('scanCloseTimer');
+          VM.state.scanCloseTimer = setTimeout(() => {
+            resetScanUi(runId, btn, btnLabel);
           }, 900);
         }
       });
@@ -167,15 +210,9 @@
     requestAnimationFrame(tick);
 
     // Hard fail-safe: never leave scan lock stuck on client.
-    setTimeout(() => {
-      if (!VM.state.scanInFlight) return;
-      hideScanOverlay();
-      if (btn) {
-        btn.disabled = false;
-        btn.classList.remove('disabled');
-        btn.textContent = btnLabel || '🔍 فحص المنافذ';
-      }
-      VM.state.scanInFlight = false;
+    VM.state.scanFailSafeTimer = setTimeout(() => {
+      if (!isActiveScan(runId)) return;
+      resetScanUi(runId, btn, btnLabel);
     }, 30000);
   }
 
