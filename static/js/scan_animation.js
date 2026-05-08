@@ -76,7 +76,7 @@
     if (status) status.textContent = 'تهيئة محرك الاكتشاف...';
 
     // Duration: 6–10 seconds
-    const totalMs = 6000 + Math.floor(Math.random() * 4000);
+    const totalMs = 12000 + Math.floor(Math.random() * 6000);
     const start = performance.now();
 
     // Fire backend request right away
