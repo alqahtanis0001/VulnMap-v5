@@ -203,10 +203,18 @@
     const overlay = UI.overlay, bar = UI.scanBar, status = UI.scanStatus;
     const btn = UI.scanBtn;
     const btnLabel = btn ? btn.textContent : '';
+    const totalMs = scanWindowDurationMs();
+    const start = performance.now();
     let backendDone = false;
     let visualDone = false;
     let finalized = false;
     let payload = null;
+    let rafId = null;
+    let controller = null;
+
+    if (typeof AbortController !== 'undefined') {
+      controller = new AbortController();
+    }
 
     // Overlay setup
     showScanOverlay();
@@ -221,9 +229,6 @@
     }
     if (status) status.textContent = 'تهيئة محرك الاكتشاف...';
 
-    const totalMs = scanWindowDurationMs();
-    const start = performance.now();
-
     // Step messages (Arabic)
     const steps = [
       'تهيئة محرك الاكتشاف...',
@@ -235,32 +240,63 @@
     let stepIdx = 0;
     const stepDur = totalMs / steps.length;
 
-    // ---- Animation Tick ----
+    function cancelTick() {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+    }
+
+    function abortScanRequest() {
+      if (controller && !controller.signal.aborted) {
+        try { controller.abort(); }
+        catch (err) {}
+      }
+    }
+
+    function errorPayload(error) {
+      return { ok:false, changed:0, error:error || 'scan_failed' };
+    }
+
     function settleScanPayload(nextPayload) {
-      if (!isActiveScan(runId) || backendDone) return;
-      payload = nextPayload || { ok:false };
+      if (!isActiveScan(runId) || backendDone || finalized) return;
+      payload = nextPayload || errorPayload('empty_response');
       backendDone = true;
       clearScanTimer('scanRequestTimer');
       clearScanTimer('scanResultWaitTimer');
       finishIfReady();
     }
 
-    VM.state.scanRequestTimer = setTimeout(() => {
-      settleScanPayload({ ok:false, error:'timeout' });
-    }, SCAN_FETCH_TIMEOUT_MS);
-
-    function scheduleResultWait() {
+    function scheduleBackendGrace() {
       if (!isActiveScan(runId) || backendDone || VM.state.scanResultWaitTimer) return;
       if (status) status.textContent = 'تجهيز نتيجة الفحص...';
       VM.state.scanResultWaitTimer = setTimeout(() => {
-        settleScanPayload({ ok:false, error:'timeout' });
-      }, RESULT_WAIT_AFTER_VISUAL_MS);
+        abortScanRequest();
+        settleScanPayload(errorPayload('backend_grace_timeout'));
+      }, SCAN_BACKEND_GRACE_MS);
+    }
+
+    function markVisualDone() {
+      if (!isActiveScan(runId) || visualDone || finalized) return;
+      visualDone = true;
+      cancelTick();
+      clearScanTimer('scanVisualTimer');
+      if (bar) {
+        bar.style.transition = 'width 0.35s ease-out';
+        bar.style.width = '99%';
+      }
+      scheduleBackendGrace();
+      finishIfReady();
     }
 
     function finishIfReady() {
       if (!isActiveScan(runId)) return;
       if (finalized || !visualDone || !backendDone) return;
       finalized = true;
+      cancelTick();
+      clearScanTimer('scanRequestTimer');
+      clearScanTimer('scanVisualTimer');
+      clearScanTimer('scanResultWaitTimer');
 
       try {
         const changed = (payload && payload.changed) ? payload.changed : 0;
@@ -300,11 +336,11 @@
     }
 
     function tick(now) {
-      if (!isActiveScan(runId) || finalized) return;
+      if (!isActiveScan(runId) || finalized || visualDone) return;
 
       const elapsed = now - start;
-      const rawPct = Math.round((elapsed / totalMs) * 100);
-      const pct = backendDone ? Math.min(99, rawPct) : Math.min(94, rawPct);
+      const rawPct = totalMs > 0 ? Math.round((elapsed / totalMs) * 100) : 100;
+      const pct = Math.min(96, rawPct);
 
       // Smooth easing for progress bar
       const easedPct = Math.pow(pct / 100, 0.8) * 100;
@@ -316,38 +352,62 @@
       }
 
       if (elapsed >= totalMs) {
-        visualDone = true;
-        scheduleResultWait();
-        finishIfReady();
+        markVisualDone();
       }
 
-      if (!finalized) {
-        requestAnimationFrame(tick);
+      if (!finalized && !visualDone) {
+        rafId = requestAnimationFrame(tick);
       }
     }
 
-    requestAnimationFrame(tick);
+    VM.state.scanVisualTimer = setTimeout(markVisualDone, totalMs);
+    rafId = requestAnimationFrame(tick);
 
-    // Fire backend request right away. If it never settles, the result wait
-    // timer turns the stalled scan into a visible error dialog.
-    fetch(EP.scanJson, {
+    VM.state.scanRequestTimer = setTimeout(() => {
+      abortScanRequest();
+      settleScanPayload(errorPayload('fetch_timeout'));
+    }, SCAN_FETCH_TIMEOUT_MS);
+
+    // Fire backend request right away, but never allow it to close the visual scan window early.
+    const fetchOptions = {
       method: 'POST',
       headers: {
         'X-Requested-With': 'fetch',
+        'Accept': 'application/json',
         'X-CSRFToken': csrfToken()
       },
       credentials: 'same-origin'
-    }).then(r => r.json())
+    };
+    if (controller) fetchOptions.signal = controller.signal;
+
+    fetch(EP.scanJson, fetchOptions)
+      .then(async r => {
+        let data = null;
+        try {
+          data = await r.json();
+        } catch (err) {
+          return errorPayload('invalid_json');
+        }
+        if (!r.ok || !data || data.ok !== true) {
+          return Object.assign(errorPayload('bad_response'), data || {});
+        }
+        return data;
+      })
       .then(d => { settleScanPayload(d); })
-      .catch(() => { settleScanPayload({ ok:false }); });
+      .catch(err => {
+        if (backendDone) return;
+        const isAbort = err && err.name === 'AbortError';
+        settleScanPayload(errorPayload(isAbort ? 'aborted' : 'network_error'));
+      });
 
     // Hard fail-safe: never leave scan lock stuck on client.
+    const hardStopMs = totalMs + Math.max(SCAN_BACKEND_GRACE_MS, SCAN_FETCH_TIMEOUT_MS) + SCAN_HARD_STOP_BUFFER_MS;
     VM.state.scanFailSafeTimer = setTimeout(() => {
       if (!isActiveScan(runId)) return;
-      payload = payload || { ok:false };
-      resetScanUi(runId, btn, btnLabel);
-      showScanResultAfterOverlay(runId, payload);
-    }, 30000);
+      abortScanRequest();
+      visualDone = true;
+      settleScanPayload(payload || errorPayload('hard_stop'));
+    }, hardStopMs);
   }
 
   // ---- Initialize ----
